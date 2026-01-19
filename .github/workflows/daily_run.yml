@@ -1,0 +1,21 @@
+name: Daily Hello World
+on:
+  schedule:
+    # This is the "Cron" part. It means: "Run at 08:00 UTC every day"
+    - cron: '0 8 * * *'
+  workflow_dispatch: # This adds a "Run Now" button for testing
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run the script
+        run: python hello.py
