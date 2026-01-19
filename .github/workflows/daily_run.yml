@@ -1,4 +1,4 @@
-name: Daily Land Search Engine
+name: Daily Park4Night Scraper
 
 on:
   schedule:
@@ -8,7 +8,6 @@ on:
 jobs:
   scrape_and_store:
     runs-on: ubuntu-latest
-    # Added permissions so the Action can "Write" back to your repo
     permissions:
       contents: write
 
@@ -22,19 +21,22 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Dependencies
-        run: pip install firecrawl-py pydantic
-
-      - name: Run Land Scraper
-        run: python main.py
-        env:
-          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-
-      # NEW STEP: Commit the CSV changes
-      - name: Commit and Push CSV
+      - name: Install Python Dependencies
         run: |
-          git config --global user.name "Land Bot"
+          pip install playwright playwright-stealth pandas tenacity httpx
+
+      - name: Install Playwright Browsers & Deps
+        run: |
+          # Installs Chromium and the system-level libraries required to run it
+          playwright install chromium --with-deps
+
+      - name: Run Park4Night Crawler
+        run: python backbone_crawler.py
+
+      - name: Commit and Push Data
+        run: |
+          git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
-          git add land_deals.csv
-          git commit -m "Update land deals CSV [skip ci]" || echo "No changes to commit"
+          git add backbone_locations.csv
+          git commit -m "Auto-update Portugal locations [skip ci]" || echo "No changes to commit"
           git push
