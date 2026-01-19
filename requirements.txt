@@ -1,2 +1,2 @@
-firecrawl-py
+firecrawl-py>=1.0.0
 pydantic
