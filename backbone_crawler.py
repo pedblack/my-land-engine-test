@@ -2,37 +2,46 @@ import asyncio
 import random
 import re
 import os
+import json
 import pandas as pd
 import google.generativeai as genai
-import json
 from datetime import datetime, timedelta
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
-# Configuration
+# --- CONFIGURATION ---
 CSV_FILE = "backbone_locations.csv"
+# SECURE: Pulls from GitHub Secrets or uses your provided key locally
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyD_A_bYXFkkOLzpXgPuvje39x4w7YPOfzs")
+MODEL_NAME = "gemini-3-flash-preview" # Latest Jan 2026 SOTA Model
 
-# Initialize Gemini with JSON mode for schema stability
+TARGET_URLS = [
+    "https://park4night.com/en/search?lat=37.63658110718217&lng=-8.638597348689018&z=10",
+    "https://park4night.com/en/search?lat=37.87856774592691&lng=-8.568677272965147&z=10"
+]
+
+# Initialize AI
 genai.configure(api_key=GEMINI_API_KEY)
 ai_model = genai.GenerativeModel(
-    'gemini-1.5-flash',
-    generation_config={"response_mime_type": "application/json"}
+    model_name=MODEL_NAME,
+    generation_config={"response_mime_type": "application/json", "temperature": 0.1}
 )
 
 class P4NScraper:
     def __init__(self):
         self.discovery_links = []
-        self.new_data = []
-        self.existing_df = self.load_existing_data()
+        self.scraped_batch = []
+        self.existing_df = self._load_existing()
 
-    def load_existing_data(self):
+    def _load_existing(self):
+        """Loads state from CSV to enable incremental logic."""
         if os.path.exists(CSV_FILE):
             try:
                 df = pd.read_csv(CSV_FILE)
                 df['last_scraped'] = pd.to_datetime(df['last_scraped'])
                 return df
-            except: pass
+            except Exception as e:
+                print(f"⚠️ Error loading state: {e}")
         return pd.DataFrame(columns=["p4n_id", "last_scraped"])
 
     async def init_browser(self, p):
@@ -45,116 +54,82 @@ class P4NScraper:
         await Stealth().apply_stealth_async(page)
         return browser, page
 
-    async def summarize_and_detect_languages(self, reviews):
-        """Single LLM call to get summary AND language distribution signal."""
-        if not reviews:
-            return "No reviews found.", "N/A", "{}"
-        
-        text_block = "\n".join(reviews)[:8000] # Increased context window for better language signal
-        prompt = f"""
-        Analyze these campsite reviews. Return a JSON object with these keys:
-        - 'pros': Concise bullet list of positives in English.
-        - 'cons': Concise bullet list of recurrent issues in English.
-        - 'lang_dist': A dictionary where keys are the ISO language code (e.g. 'fr', 'pt', 'en', 'de') 
-          and values are the count of reviews in that language.
-        
-        Reviews:
-        {text_block}
-        """
-        try:
-            # Respect Gemini Free Tier RPM (15 calls per minute)
-            await asyncio.sleep(4) 
-            response = await ai_model.generate_content_async(prompt)
-            data = json.loads(response.text)
-            
-            # Convert dict to string for CSV storage
-            lang_signal = json.dumps(data.get('lang_dist', {}))
-            return data.get('pros', 'N/A'), data.get('cons', 'N/A'), lang_signal
-        except Exception as e:
-            print(f"AI Signal Error: {e}")
-            return "Analysis failed.", "N/A", "{}"
-
-    async def extract_atomic(self, page, url):
-        """ATOMIC EXTRACTION: Detail metadata + Comments in ONE visit."""
-        print(f"📄 Atomic Scrape: {url}")
-        try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-            await asyncio.sleep(random.uniform(3, 5))
-
-            # 1. Scrape all raw comments first
-            comment_elements = await page.locator(".place-feedback-article-content").all()
-            raw_reviews = [await c.inner_text() for c in comment_elements]
-            
-            # 2. Enrich via LLM (Summary + Language Signal)
-            pros, cons, lang_dist = await self.summarize_and_detect_languages(raw_reviews)
-
-            # 3. Scrape Metadata
-            p4n_id = await page.locator("body").get_attribute("data-place-id")
-            title = (await page.locator(".place-header-name").inner_text()).strip()
-            
-            async def get_dl(label):
-                try: return (await page.locator(f"dl.place-info-details dt:has-text('{label}') + dd").inner_text()).strip()
-                except: return "N/A"
-
-            self.new_data.append({
-                "p4n_id": p4n_id,
-                "title": title,
-                "type": await page.locator(".place-header-access img").get_attribute("title"),
-                "rating": (await page.locator(".rating-note").first.inner_text()).split('/')[0].strip() if await page.locator(".rating-note").count() > 0 else "0",
-                "photos_count": await page.locator("body").get_attribute("data-images-length") or "0",
-                "service_price": await get_dl("Price of services"),
-                "parking_cost": await get_dl("Parking cost"),
-                "num_places": await get_dl("Number of places"),
-                "ai_summary_pros": pros,
-                "ai_summary_cons": cons,
-                "comment_languages": lang_dist, # NEW SIGNAL
-                "url": url,
-                "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-        except Exception as e:
-            print(f"⚠️ Atomic Error: {url} -> {e}")
-
-    async def run(self):
-        async with async_playwright() as p:
-            browser, page = await self.init_browser(p)
-            
-            # Discovery Phase
-            search_urls = [
-                "https://park4night.com/en/search?lat=37.63658110718217&lng=-8.638597348689018&z=10",
-                "https://park4night.com/en/search?lat=37.87856774592691&lng=-8.568677272965147&z=10"
-            ]
-            for url in search_urls:
-                await page.goto(url, wait_until="networkidle")
-                await asyncio.sleep(2)
+    async def run_discovery(self, page):
+        """Phase 1: Map Discovery."""
+        for url in TARGET_URLS:
+            print(f"🔍 Discovering: {url}")
+            try:
+                await page.goto(url, wait_until="networkidle", timeout=60000)
+                try: # Clear Cookie Banner
+                    btn = page.locator(".cc-btn-accept")
+                    if await btn.is_visible(timeout=3000): await btn.click()
+                except: pass
+                
+                await asyncio.sleep(3)
                 links = await page.locator("#searchmap-list-results li a").all()
                 for link in links:
                     href = await link.get_attribute("href")
                     if href and "/place/" in href:
                         self.discovery_links.append(f"https://park4night.com{href}")
+            except Exception as e:
+                print(f"❌ Discovery failed for {url}: {e}")
 
-            # Delta Filter (1-week rule)
-            queue = []
-            for l in list(set(self.discovery_links)):
-                p_id = re.search(r'/place/(\d+)', l).group(1)
-                if p_id not in self.existing_df['p4n_id'].astype(str).values:
-                    queue.append(l)
-                else:
-                    last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == p_id]['last_scraped'].iloc[0]
-                    if (datetime.now() - last_date) > timedelta(days=7):
-                        queue.append(l)
+    async def summarize_via_ai(self, reviews):
+        """Phase 2b: Intelligent Signal Extraction using Gemini 3."""
+        if not reviews:
+            return "No reviews.", "N/A", "{}"
+        
+        prompt = f"""
+        Analyze these campsite reviews. Provide:
+        - 'pros': 2-3 specific positives (English).
+        - 'cons': 2-3 recurrent issues (English).
+        - 'lang_dist': JSON dict of ISO codes and their review counts.
+        
+        Reviews: {" ".join(reviews)[:10000]}
+        """
+        try:
+            await asyncio.sleep(4) # Rate limit safety
+            response = await ai_model.generate_content_async(prompt)
+            data = json.loads(response.text)
+            return (
+                data.get('pros', 'N/A'), 
+                data.get('cons', 'N/A'), 
+                json.dumps(data.get('lang_dist', {}))
+            )
+        except Exception as e:
+            print(f"🤖 AI Error: {e}")
+            return "Analysis failed.", "N/A", "{}"
 
-            print(f"✅ Queue: {len(queue)} items for atomic scrape.")
-            for link in queue:
-                await self.extract_atomic(page, link)
+    async def extract_atomic(self, page, url):
+        """Phase 2: Atomic Extraction (Detail + Comments + AI)."""
+        print(f"📄 Atomic Scrape: {url}")
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(random.uniform(2, 4))
+
+            # Metadata Scraping
+            p4n_id = await page.locator("body").get_attribute("data-place-id")
+            title = (await page.locator(".place-header-name").inner_text()).strip()
+            loc_type = await page.locator(".place-header-access img").get_attribute("title")
             
-            await browser.close()
-            self.save_data()
+            # Rating & Feedback counts
+            rating_el = page.locator(".rating-note").first
+            rating = (await rating_el.inner_text()).split('/')[0] if await rating_el.count() > 0 else "0"
+            
+            # Review Scraping
+            review_els = await page.locator(".place-feedback-article-content").all()
+            raw_reviews = [await r.inner_text() for r in review_els]
+            
+            # AI Enrichment
+            pros, cons, lang_dist = await self.summarize_via_ai(raw_reviews)
 
-    def save_data(self):
-        if not self.new_data: return
-        new_df = pd.DataFrame(self.new_data)
-        combined = pd.concat([new_df, self.existing_df], ignore_index=True)
-        combined.sort_values('last_scraped', ascending=False).drop_duplicates('p4n_id').to_csv(CSV_FILE, index=False)
+            # DL Table Parsing
+            async def get_dl(label):
+                try: return (await page.locator(f"dl.place-info-details dt:has-text('{label}') + dd").inner_text()).strip()
+                except: return "N/A"
 
-if __name__ == "__main__":
-    asyncio.run(P4NScraper().run())
+            self.scraped_batch.append({
+                "p4n_id": p4n_id,
+                "title": title,
+                "type": loc_type,
+                "
