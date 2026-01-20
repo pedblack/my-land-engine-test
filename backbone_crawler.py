@@ -35,7 +35,7 @@ class PipelineLogger:
         """Saves deeply formatted JSON events to the log file for maximum readability."""
         processed_content = {}
         for k, v in data.items():
-            # Un-escape nested JSON strings (like prompts/responses) so they print as blocks
+            # If the value is a string but looks like JSON, we parse it so it pretty-prints
             if isinstance(v, str) and (v.strip().startswith('{') or v.strip().startswith('[')):
                 try:
                     processed_content[k] = json.loads(v)
@@ -52,7 +52,7 @@ class PipelineLogger:
         
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             header = f"\n{'='*30} {event_type} {'='*30}\n"
-            # ensure_ascii=False ensures 'São Miguel' and symbols are human-readable
+            # ensure_ascii=False keeps international characters readable
             pretty_json = json.dumps(log_entry, indent=4, default=str, ensure_ascii=False)
             f.write(header + pretty_json + "\n")
 
@@ -87,36 +87,32 @@ class P4NScraper:
         return pd.DataFrame()
 
     async def login(self, page):
-        """Ultra-reliable login with simulated human typing speed."""
+        """Ultra-reliable login with slow typing and explicit button targeting."""
         if not P4N_USER or not P4N_PASS: return
         print(f"🔐 Attempting Login for {P4N_USER}...")
         try:
-            # 1. Open Modal
             await page.click(".pageHeader-account-button")
             await asyncio.sleep(2)
             await page.click(".pageHeader-account-dropdown >> text='Login'", force=True)
             
-            # 2. Wait and Focus
             user_input = page.locator("#signinUserId")
             await user_input.wait_for(state="visible")
             await user_input.focus()
             await asyncio.sleep(0.5)
 
-            # 3. Slow, human-like typing to avoid missing characters
-            await user_input.type(P4N_USER, delay=random.randint(100, 250))
+            # Slower typing to ensure every character is registered
+            await user_input.type(P4N_USER, delay=random.randint(150, 300))
             await asyncio.sleep(random.uniform(0.5, 1.0))
             
             pass_input = page.locator("#signinPassword")
             await pass_input.focus()
-            await pass_input.type(P4N_PASS, delay=random.randint(100, 250))
+            await pass_input.type(P4N_PASS, delay=random.randint(150, 300))
             
-            # 4. Human-like click on Submit
             submit_btn = page.locator(".modal-footer button[type='submit']:has-text('Login')")
             await submit_btn.hover()
             await asyncio.sleep(1)
             await submit_btn.click(force=True)
             
-            # 5. Wait for transition
             try:
                 await page.wait_for_selector("#signinModal", state="hidden", timeout=12000)
             except: 
@@ -125,7 +121,6 @@ class P4NScraper:
             await page.wait_for_load_state("networkidle")
             await asyncio.sleep(6) 
 
-            # 6. Final Audit
             user_span = page.locator(".pageHeader-account-button span")
             actual_username = await user_span.inner_text()
             
@@ -142,22 +137,34 @@ class P4NScraper:
             PipelineLogger.log_event("LOGIN_ERROR", {"error": str(e)})
 
     async def analyze_with_ai(self, raw_data):
-        """Atomic AI call with safety and un-escaped logging."""
-        json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
+        """Atomic AI call with explicit prompting and detailed logging."""
+        system_instruction = (
+            "You are a property data analyst. Analyze the provided reviews and return a JSON object with this schema: "
+            "{ 'parking_min': integer_price_in_eur, 'pros': 'summary_string', 'cons': 'summary_string' }. "
+            "If no price is mentioned, set parking_min to 0. Summarize reviews into concise English pros and cons."
+        )
         
-        # Log the raw data dictionary (so it pretty-prints as a block)
+        json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
+        final_prompt_string = f"DATA TO ANALYZE:\n{json_payload}"
+        
+        # LOG THE FINAL PROMPT
         PipelineLogger.log_event("AI_REQUEST", {
             "p4n_id": raw_data.get("p4n_id"),
-            "prompt_content": raw_data
+            "system_instruction": system_instruction,
+            "final_full_prompt": final_prompt_string
         })
 
-        config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1)
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json", 
+            temperature=0.1,
+            system_instruction=system_instruction
+        )
         
         try:
             await asyncio.sleep(AI_DELAY) 
             response = await client.aio.models.generate_content(
                 model=MODEL_NAME, 
-                contents=f"Analyze property data. Return JSON only:\n{json_payload}", 
+                contents=final_prompt_string, 
                 config=config
             )
             PipelineLogger.log_event("AI_RESPONSE", {"res": response.text})
@@ -173,7 +180,7 @@ class P4NScraper:
             p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
             title = (await page.locator("h1").first.inner_text()).split('\n')[0].strip()
             
-            # --- COORDINATE EXTRACTION ---
+            # COORDINATE EXTRACTION
             lat, lng = 0.0, 0.0
             try:
                 coord_link = await page.locator("a[href*='lat='][href*='lng=']").first.get_attribute("href")
@@ -193,10 +200,14 @@ class P4NScraper:
             ai_data = await self.analyze_with_ai(raw_payload)
 
             row = {
-                "p4n_id": p_id, "title": title, "url": url,
-                "latitude": lat, "longitude": lng,
+                "p4n_id": p_id, 
+                "title": title, 
+                "url": url,
+                "latitude": lat, 
+                "longitude": lng,
                 "parking_min_eur": ai_data.get("parking_min", 0),
                 "ai_pros": ai_data.get("pros", "N/A"),
+                "ai_cons": ai_data.get("cons", "N/A"),
                 "last_scraped": datetime.now()
             }
             
@@ -208,7 +219,7 @@ class P4NScraper:
     async def start(self):
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
             page = await context.new_page()
             await Stealth().apply_stealth_async(page)
             
