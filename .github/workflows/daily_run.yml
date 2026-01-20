@@ -2,7 +2,7 @@ name: Daily Land Search & Map
 
 on:
   schedule:
-    - cron: '0 8 * * *' 
+    - cron: '0 8 * * *' # Daily Prod Run
   workflow_dispatch:
     inputs:
       mode:
@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -32,16 +31,15 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install pandas google-genai playwright playwright-stealth folium
+          pip install -r requirements.txt
           playwright install chromium --with-deps
 
-      - name: Run Scraper
+      - name: Run Unified Scraper
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           P4N_USERNAME: ${{ secrets.P4N_USERNAME }}
           P4N_PASSWORD: ${{ secrets.P4N_PASSWORD }}
         run: |
-          # Use conditional flag based on manual input
           if [[ "${{ github.event.inputs.mode }}" == "dev" ]]; then
             python backbone_crawler.py --dev
           else
@@ -50,15 +48,25 @@ jobs:
 
       - name: Generate Visualization
         run: |
-          # If we ran dev, tell the visualizer to use the dev CSV
+          # Use dev CSV if it exists
           if [ -f "backbone_locations_dev.csv" ]; then
             export CSV_FILE="backbone_locations_dev.csv"
           fi
           python visualize_land.py
 
-      - name: Commit and Push
+      - name: Upload Pipeline Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-audit-logs
+          path: pipeline_execution.log
+          # TERNARY LOGIC: 1 day if dev, 30 days otherwise
+          retention-days: ${{ github.event.inputs.mode == 'dev' && 1 || 30 }}
+
+      - name: Commit and Push (Prod Only)
+        # We only commit the real database in prod mode
+        if: github.event.inputs.mode != 'dev'
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
-          git add backbone_locations.csv backbone_locations_dev.csv portugal_land_map.html
+          git add backbone_locations.csv portugal_land_map.html
           git diff --staged --quiet || (git commit -m "Auto-update [skip ci]" && git push)
