@@ -26,7 +26,6 @@ def generate_map():
     prop_types = sorted(df_clean['location_type'].unique().tolist())
 
     for _, row in df_clean.iterrows():
-        # --- ROBUST VALUE PARSING ---
         def clean_int(val):
             try:
                 if pd.isna(val) or val == "": return 0
@@ -39,46 +38,28 @@ def generate_map():
 
         num_places = clean_int(row.get('num_places', 0))
         intensity = float(row.get('intensity_index', 0)) if not pd.isna(row.get('intensity_index')) else 0
-        
-        # Color logic for Intensity Bar
         bar_color = "#28a745" if intensity < 4 else "#fd7e14" if intensity < 8 else "#dc3545"
 
         popup_html = f"""
         <div style="font-family: Arial, sans-serif; width: 320px; line-height: 1.6; font-size: 14px; color: #333;">
             <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #2c3e50; border-bottom: 3px solid #27d9a1;">{row['title']}</h3>
-            
-            <div style="margin-bottom: 12px; font-weight: bold; font-size: 15px; color: #7f8c8d;">
-                📍 {row['location_type']} | 🚗 {num_places} spots
-            </div>
-
+            <div style="margin-bottom: 12px; font-weight: bold; font-size: 15px; color: #7f8c8d;">📍 {row['location_type']} | 🚗 {num_places} spots</div>
             <div style="margin-bottom: 15px;">
-                <div style="display:flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
-                    <b>Occupancy Intensity:</b> <span>{intensity}/10</span>
-                </div>
-                <div style="width: 100%; background: #eee; border-radius: 10px; height: 8px;">
-                    <div style="width: {intensity*10}%; background: {bar_color}; height: 8px; border-radius: 10px;"></div>
-                </div>
+                <div style="display:flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;"><b>Occupancy Intensity:</b> <span>{intensity}/10</span></div>
+                <div style="width: 100%; background: #eee; border-radius: 10px; height: 8px;"><div style="width: {intensity*10}%; background: {bar_color}; height: 8px; border-radius: 10px;"></div></div>
             </div>
-
             <div style="background: #f1f3f5; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #dee2e6;">
-                <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+                <table style="width: 100%; font-size: 14px;">
                     <tr><td>💰 <b>Min:</b></td><td style="text-align: right;">{row.get('parking_min_eur', 0)}€</td></tr>
                     <tr><td>⚡ <b>Elec:</b></td><td style="text-align: right;">{row.get('electricity_eur', 0)}€</td></tr>
                     <tr><td>🕒 <b>Arrival:</b></td><td style="text-align: right; color: #e67e22;"><b>{row.get('arrival_window', 'anytime')}</b></td></tr>
-                    <tr><td>📅 <b>Booking:</b></td><td style="text-align: right;">{'Required' if row.get('booking_required') == True else 'Not needed'}</td></tr>
                 </table>
             </div>
-
-            <div style="font-size: 13px; margin-bottom: 10px;">
+            <div style="font-size: 13px;">
                 <b style="color: #27ae60;">Pros:</b> <ul style="margin:2px 0; padding-left:18px;">{format_list(row.get('ai_pros'))}</ul>
                 <b style="color: #e74c3c;">Cons:</b> <ul style="margin:2px 0; padding-left:18px;">{format_list(row.get('ai_cons'))}</ul>
             </div>
-
-            <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 10px;">
-                <b>Drivers:</b> {row.get('demand_drivers', 'None noted')}
-            </div>
-
-            <a href="{row['url']}" target="_blank" style="display: block; text-align: center; background: #27d9a1; color: white; padding: 10px; border-radius: 6px; text-decoration: none; font-weight: bold;">View on Park4Night</a>
+            <a href="{row['url']}" target="_blank" style="display: block; text-align: center; background: #27d9a1; color: white; padding: 10px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top:10px;">View on Park4Night</a>
         </div>
         """
 
@@ -91,46 +72,35 @@ def generate_map():
             tooltip=f"{row['title']} ({row['avg_rating']}⭐)"
         )
         
-        # KEY FIX: Using clean_int to prevent ValueError
+        # KEY DATA BINDING FOR JAVASCRIPT
         marker.options['data_rating'] = float(row['avg_rating'])
-        marker.options['data_reviews'] = int(row['total_reviews'])
         marker.options['data_places'] = num_places
         marker.options['data_type'] = str(row['location_type'])
         marker.add_to(marker_cluster)
 
-    # --- LEGEND & FILTER PANEL ---
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #eee; }}
         #filter-panel {{ position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 20px; width: 220px; }}
-        #legend-panel {{ position: fixed; bottom: 30px; left: 20px; z-index: 9999; padding: 15px; width: 160px; font-size: 13px; }}
-        .legend-item {{ display: flex; align-items: center; margin-bottom: 5px; }}
-        .dot {{ height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }}
+        input[type=range] {{ width: 100%; }}
     </style>
-
-    <div id="legend-panel" class="map-overlay">
-        <h4 style="margin: 0 0 10px 0; font-size: 14px;">Rating Legend</h4>
-        <div class="legend-item"><span class="dot" style="background: #28a745;"></span> Excellent (4+)</div>
-        <div class="legend-item"><span class="dot" style="background: #fd7e14;"></span> Good (3-4)</div>
-        <div class="legend-item"><span class="dot" style="background: #dc3545;"></span> Poor (<3)</div>
-    </div>
 
     <div id="filter-panel" class="map-overlay">
         <h3 style="margin-top:0; font-size:18px; color: #2c3e50;">Filter Map</h3>
         
         <div style="margin-bottom:15px;">
-            <label style="font-size:13px; font-weight:bold;">Min Rating: <span id="val-rating" style="color:#27d9a1">0</span></label>
-            <input type="range" id="filter-rating" min="0" max="5" step="0.1" value="0" oninput="document.getElementById('val-rating').innerText = this.value" style="width:100%;">
+            <label style="font-size:12px; font-weight:bold;">Min Rating: <span id="val-rating" style="color:#27d9a1">0</span></label>
+            <input type="range" id="filter-rating" min="0" max="5" step="0.1" value="0" oninput="document.getElementById('val-rating').innerText = this.value">
         </div>
         
         <div style="margin-bottom:15px;">
-            <label style="font-size:13px; font-weight:bold;">Min Places: <span id="val-places" style="color:#27d9a1">0</span></label>
-            <input type="range" id="filter-places" min="0" max="100" step="5" value="0" oninput="document.getElementById('val-places').innerText = this.value" style="width:100%;">
+            <label style="font-size:12px; font-weight:bold;">Min Places: <span id="val-places" style="color:#27d9a1">0</span></label>
+            <input type="range" id="filter-places" min="0" max="100" step="5" value="0" oninput="document.getElementById('val-places').innerText = this.value">
         </div>
         
         <div style="margin-bottom:20px;">
-            <label style="font-size:13px; font-weight:bold;">Property Type:</label>
-            <select id="filter-type" style="width:100%; padding:5px; border-radius:4px; border:1px solid #ccc;">
+            <label style="font-size:12px; font-weight:bold;">Type:</label>
+            <select id="filter-type" style="width:100%; padding:5px; border:1px solid #ccc;">
                 <option value="All">All Types</option>
                 {" ".join([f'<option value="{t}">{t}</option>' for t in prop_types])}
             </select>
@@ -149,29 +119,27 @@ def generate_map():
         const type = document.getElementById('filter-type').value;
 
         var clusterGroup = null;
+        // Correctly find the MarkerClusterGroup in the global Leaflet context
         for (let key in window) {{
-            if (window[key] instanceof L.MarkerClusterGroup) clusterGroup = window[key];
+            if (window[key] instanceof L.MarkerClusterGroup) {{
+                clusterGroup = window[key];
+                break;
+            }}
         }}
 
-        if (!clusterGroup) return;
-        if (!allMarkersBackup) allMarkersBackup = clusterGroup.getLayers();
+        if (!clusterGroup) {{
+            console.error("MarkerClusterGroup not found");
+            return;
+        }}
 
+        // Capture all markers on the first click to prevent data loss
+        if (!allMarkersBackup) {{
+            allMarkersBackup = clusterGroup.getLayers();
+        }}
+
+        // Clear the visible cluster group
         clusterGroup.clearLayers();
 
+        // Filter from the persistent backup
         const filtered = allMarkersBackup.filter(m => {{
-            const r = m.options.data_rating || 0;
-            const plc = m.options.data_places || 0;
-            const t = m.options.data_type || "";
-            return r >= minRate && plc >= minPlc && (type === "All" || t === type);
-        }});
-
-        clusterGroup.addLayers(filtered);
-    }}
-    </script>
-    """
-    m.get_root().html.add_child(folium.Element(filter_html))
-    m.save("index.html")
-    print("🚀 Map updated with Intensity Bars and error fixes.")
-
-if __name__ == "__main__":
-    generate_map()
+            const r = m.options.data_rating
