@@ -17,7 +17,7 @@ MODEL_NAME = "gemini-2.5-flash-lite"
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
-AI_DELAY = 0.5               # Tier 1 (300 RPM) speed
+AI_DELAY = 0.5               # Tier 1 (300 RPM) speed optimization
 
 # --- SYSTEM SETTINGS ---
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -32,6 +32,7 @@ TARGET_URLS = [
 class PipelineLogger:
     @staticmethod
     def log_event(event_type, data):
+        """Appends a timestamped JSON event to the log file."""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "type": event_type,
@@ -42,9 +43,14 @@ class PipelineLogger:
 
     @staticmethod
     async def save_screenshot(page, name):
+        """Saves a screenshot for debugging login/visibility issues."""
         path = f"debug_{name}_{datetime.now().strftime('%H%M%S')}.png"
         await page.screenshot(path=path)
         print(f"📸 Debug screenshot saved: {path}")
+
+if not GEMINI_API_KEY:
+    print("❌ ERROR: GOOGLE_API_KEY not found.")
+    exit(1)
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -53,6 +59,7 @@ class P4NScraper:
         self.is_dev = is_dev
         self.csv_file = DEV_CSV if is_dev else PROD_CSV
         self.current_max_reviews = 1 if is_dev else MAX_REVIEWS 
+        self.discovery_links = []
         self.processed_batch = []
         self.existing_df = self._load_existing()
 
@@ -62,58 +69,55 @@ class P4NScraper:
                 df = pd.read_csv(self.csv_file)
                 df['last_scraped'] = pd.to_datetime(df['last_scraped'])
                 return df
-            except: pass
+            except Exception: pass
         return pd.DataFrame()
 
-    async def login(self, page):
-        """Fixed Login: Uses text-based targeting and force-click to bypass visibility errors."""
-        if not P4N_USER or not P4N_PASS: return
-        print(f"🔐 Attempting Login for {P4N_USER}...")
+    async def ensure_logged_in(self, page):
+        """Checks login status and performs login directly on the search page."""
+        if not P4N_USER or not P4N_PASS:
+            PipelineLogger.log_event("LOGIN_SKIP", "No credentials in environment")
+            return
+
+        user_span = page.locator(".pageHeader-account-button span")
+        
+        # Check if already logged in (span contains username)
         try:
-            await page.goto("https://park4night.com/en", wait_until="networkidle")
-            try: await page.click(".cc-btn-accept", timeout=3000)
-            except: pass
-            
-            # 1. Open the Account Dropdown
+            current_text = await user_span.inner_text(timeout=3000)
+            if P4N_USER.lower() in current_text.lower():
+                print(f"✅ Already logged in as {current_text}")
+                return
+        except Exception:
+            pass
+
+        print(f"🔐 Not logged in. Triggering login on: {page.url}")
+        try:
+            # Open Dropdown and click Login
             await page.click(".pageHeader-account-button")
-            await asyncio.sleep(1) # Wait for CSS transition
+            await asyncio.sleep(1) # Let animation settle
             
-            # 2. Target 'Login' specifically within the visible dropdown list
-            # Using force=True ensures we click even if the browser thinks it's hidden
             login_btn = page.locator(".pageHeader-account-dropdown >> text='Login'")
             await login_btn.click(force=True)
 
-            # 3. Fill the sign-in modal
+            # Fill Modal
             await page.wait_for_selector("#signinUserId", state="visible", timeout=10000)
             await page.fill("#signinUserId", P4N_USER)
             await page.fill("#signinPassword", P4N_PASS)
             await page.keyboard.press("Enter")
             
-            # 4. Verification
-            await page.wait_for_load_state("networkidle")
-            await asyncio.sleep(3)
-            user_span = page.locator(".pageHeader-account-button span")
-            actual_username = await user_span.inner_text()
-            
-            if P4N_USER.lower() in actual_username.lower():
-                print(f"✅ Success! Logged in as: {actual_username}")
-                PipelineLogger.log_event("LOGIN_SUCCESS", {"user": actual_username})
-            else:
-                print(f"⚠️ Verification Failed. Found: '{actual_username}'")
-                await PipelineLogger.save_screenshot(page, "login_verify_failed")
-                PipelineLogger.log_event("LOGIN_WARNING", {"expected": P4N_USER, "found": actual_username})
-
+            # Wait for header update
+            await page.wait_for_selector(f".pageHeader-account-button:has-text('{P4N_USER}')", timeout=12000)
+            print(f"✅ Login verified successfully.")
+            PipelineLogger.log_event("LOGIN_SUCCESS", {"user": P4N_USER, "url": page.url})
         except Exception as e:
-            print(f"❌ Login UI Error: {e}")
-            await PipelineLogger.save_screenshot(page, "login_error")
+            print(f"❌ Login failed: {e}")
+            await PipelineLogger.save_screenshot(page, "login_failure")
             PipelineLogger.log_event("LOGIN_ERROR", {"error": str(e)})
 
     async def analyze_with_ai(self, raw_data):
-        """Analyzes property with full prompt logging."""
+        """Atomic AI request with full prompt and response logging."""
         system_instr = "Normalize costs to EUR and summarize reviews to English pros/cons."
         prompt = f"Analyze property data. Return JSON only:\n{json.dumps(raw_data)}"
         
-        # LOG REQUEST PROMPT
         PipelineLogger.log_event("AI_REQUEST", {
             "p4n_id": raw_data.get("p4n_id"),
             "full_prompt": prompt
@@ -130,7 +134,6 @@ class P4NScraper:
             response = await client.aio.models.generate_content(
                 model=MODEL_NAME, contents=prompt, config=config
             )
-            # LOG RESPONSE
             PipelineLogger.log_event("AI_RESPONSE", {"res": response.text})
             return json.loads(response.text)
         except Exception as e:
@@ -138,15 +141,15 @@ class P4NScraper:
             return {}
 
     async def extract_atomic(self, page, url):
-        print(f"📄 Scraping: {url}")
+        print(f"📄 Scraping Property: {url}")
         try:
             await page.goto(url, wait_until="domcontentloaded")
             await asyncio.sleep(random.uniform(2, 4))
             
             p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
             title = (await page.locator("h1").first.inner_text()).split('\n')[0].strip()
-            
             review_els = await page.locator(".place-feedback-article-content").all()
+            
             raw_payload = {
                 "p4n_id": p_id,
                 "parking_cost": await self._get_dl(page, "Parking cost"),
@@ -158,47 +161,82 @@ class P4NScraper:
             row = {
                 "p4n_id": p_id, "title": title, "url": url,
                 "parking_min_eur": ai_data.get("parking_min", 0),
+                "parking_max_eur": ai_data.get("parking_max", 0),
                 "ai_pros": ai_data.get("pros", "N/A"),
                 "ai_cons": ai_data.get("cons", "N/A"),
                 "last_scraped": datetime.now()
             }
             PipelineLogger.log_event("ROW_PREPARED", row)
             self.processed_batch.append(row)
-        except Exception as e: print(f"⚠️ Error {url}: {e}")
+        except Exception as e:
+            print(f"⚠️ Extraction Error {url}: {e}")
 
     async def _get_dl(self, page, label):
         try: return (await page.locator(f"dt:has-text('{label}') + dd").first.inner_text()).strip()
-        except: return "N/A"
+        except Exception: return "N/A"
 
     async def start(self):
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(user_agent="Mozilla/5.0...")
+            context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             page = await context.new_page()
             await Stealth().apply_stealth_async(page)
-            
-            await self.login(page)
 
-            # Discovery Phase
+            # 1. Discovery Phase (Contextual Login)
             for url in TARGET_URLS:
-                try:
-                    await page.goto(url, wait_until="networkidle")
-                    links = await page.locator("a[href*='/place/']").all()
-                    for link in links:
-                        href = await link.get_attribute("href")
-                        if href:
-                            self.discovery_links.append(f"https://park4night.com{href}" if href.startswith("/") else href)
-                        if self.is_dev and len(self.discovery_links) >= 1: break
-                except: pass
+                print(f"🔍 Accessing Search: {url}")
+                await page.goto(url, wait_until="networkidle")
+                
+                try: await page.click(".cc-btn-accept", timeout=2000)
+                except Exception: pass
+
+                # Login right here on the search result page
+                await self.ensure_logged_in(page)
+
+                links = await page.locator("a[href*='/place/']").all()
+                print(f"🧪 Found {len(links)} location links.")
+                
+                for link in links:
+                    href = await link.get_attribute("href")
+                    if href:
+                        full_url = f"https://park4night.com{href}" if href.startswith("/") else href
+                        self.discovery_links.append(full_url)
+                    if self.is_dev and len(self.discovery_links) >= 1: break
+                
                 if self.is_dev and len(self.discovery_links) >= 1: break
 
-            # Queue Filter
+            # 2. Filter Queue
+            unique_links = list(set(self.discovery_links))
             queue = []
-            for link in list(set(self.discovery_links)):
+            for link in unique_links:
                 p_id_match = re.search(r'/place/(\d+)', link)
                 if not p_id_match: continue
                 p_id = p_id_match.group(1)
                 
                 if self.is_dev:
                     queue.append(link)
-                    break
+                    break # Strictly 1 item in dev mode
+                
+                is_stale = True
+                if not self.existing_df.empty and p_id in self.existing_df['p4n_id'].astype(str).values:
+                    last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == p_id]['last_scraped'].iloc[0]
+                    if (datetime.now() - last_date) < timedelta(days=7): 
+                        is_stale = False
+                if is_stale: queue.append(link)
+
+            # 3. Process
+            print(f"⚡ Queue contains {len(queue)} items.")
+            for link in queue:
+                await self.extract_atomic(page, link)
+            
+            await browser.close()
+            self._upsert_and_save()
+
+    def _upsert_and_save(self):
+        if not self.processed_batch:
+            print("🏁 No new records to save.")
+            return
+        new_df = pd.DataFrame(self.processed_batch)
+        final_df = pd.concat([new_df, self.existing_df], ignore_index=True)
+        final_df['last_scraped'] = pd.to_datetime(final_df['last_scraped'])
+        final_df.sort_values('last_scraped', ascending=False).drop_duplicates('p4n_id').to
