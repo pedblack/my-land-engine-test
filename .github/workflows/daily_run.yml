@@ -65,12 +65,14 @@ jobs:
           python visualize_land.py
 
       - name: Upload Pipeline Artifacts
-        if: always()
+        if: always() # Ensures we get logs and screenshots even if the scraper crashes
         uses: actions/upload-artifact@v4
         with:
           name: pipeline-debug-package
           path: |
             pipeline_execution.log
+            login_success.png
+            login_failure.png
             debug_*.png
           retention-days: ${{ github.event.inputs.mode == 'dev' && 1 || 30 }}
 
