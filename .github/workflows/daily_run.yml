@@ -1,13 +1,15 @@
-name: Daily Park4Night Scraper
+name: Daily Land Search & Map
 
 on:
   schedule:
+    # Runs at 08:00 UTC every day
     - cron: '0 8 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
-  scrape_and_store:
+  scrape_and_visualize:
     runs-on: ubuntu-latest
+    timeout-minutes: 60 # Safety for deep crawling
     permissions:
       contents: write
 
@@ -21,33 +23,36 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install Dependencies
+      - name: Install Python Dependencies
         run: |
-          pip install -r requirements.txt
+          # Explicitly listing all required libraries to avoid ModuleNotFoundErrors
+          pip install playwright playwright-stealth pandas tenacity google-generativeai folium
+
+      - name: Install Playwright Browsers & System Deps
+        run: |
+          # Mandatory for running Chromium on headless Linux
           playwright install chromium --with-deps
 
-      - name: Install Playwright Browsers & Deps
-        run: |
-          # Installs Chromium and the system-level libraries required to run it
-          playwright install chromium --with-deps
-
-      - name: Run Park4Night Crawler
+      - name: Run Atomic Scraper & Gemini AI Analysis
         run: python backbone_crawler.py
+        env:
+          # Ensure you have added GOOGLE_API_KEY to Settings > Secrets > Actions
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
 
-      - name: Commit and Push Data
+      - name: Generate Geospatial Visualization
+        run: python visualize_land.py
+
+      - name: Commit and Push Updated Data & Map
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
           
-          # 1. Stage the changes
-          git add backbone_locations.csv
+          # Stage the database and the interactive HTML map
+          git add backbone_locations.csv portugal_land_map.html
           
-          # 2. Commit only if there are changes
-          git commit -m "Auto-update Portugal locations [skip ci]" || echo "No changes to commit"
+          # Commit only if files actually changed
+          git commit -m "Auto-update Land Database & Map [skip ci]" || echo "No changes to commit"
           
-          # 3. Pull latest changes with rebase to avoid merge conflicts
-          # This handles the "fetch first" error you encountered
+          # Use rebase to handle race conditions if the repo was modified during the run
           git pull --rebase origin main
-          
-          # 4. Push the combined work back to the repo
           git push origin main
