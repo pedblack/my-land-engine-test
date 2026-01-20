@@ -22,13 +22,13 @@ def generate_map():
     # Center on Alentejo
     m = folium.Map(location=[38.5, -7.9], zoom_start=9, tiles="cartodbpositron")
     
-    # We use a LayerGroup instead of MarkerCluster to show all points
+    # We use a LayerGroup instead of MarkerCluster to show all points all the time
     marker_layer = folium.FeatureGroup(name="Properties").add_to(m)
 
     prop_types = sorted(df_clean['location_type'].unique().tolist())
 
     for _, row in df_clean.iterrows():
-        # Robust Value Parsing to prevent NaN errors
+        # Robust Value Parsing
         def clean_int(val):
             try:
                 if pd.isna(val) or val == "": return 0
@@ -85,6 +85,7 @@ def generate_map():
         marker.add_to(marker_layer)
 
     # --- UI & JAVASCRIPT ---
+    # Doubled curly braces {{ }} prevent Python f-string errors while keeping JS valid
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #eee; }}
@@ -113,7 +114,7 @@ def generate_map():
         </div>
         <div style="margin-bottom:20px;">
             <label style="font-size:12px; font-weight:bold;">Type:</label>
-            <select id="filter-type" style="width:100%; padding:5px; border:1px solid #ccc;">
+            <select id="filter-type" style="width:100%; padding:5px; border-radius:4px; border:1px solid #ccc;">
                 <option value="All">All Types</option>
                 {" ".join([f'<option value="{t}">{t}</option>' for t in prop_types])}
             </select>
@@ -125,19 +126,17 @@ def generate_map():
     var allMarkersBackup = null;
 
     function applyFilters() {{
-        console.log("Applying filters...");
         const minRate = parseFloat(document.getElementById('filter-rating').value);
         const minPlc = parseInt(document.getElementById('filter-places').value);
         const type = document.getElementById('filter-type').value;
 
         var targetLayer = null;
         for (let key in window) {{
-            // Look for the FeatureGroup/LayerGroup used for markers
             if (window[key] instanceof L.FeatureGroup || window[key] instanceof L.LayerGroup) {{
                 targetLayer = window[key];
                 break;
             }}
-        }
+        }}
 
         if (!targetLayer) {{
             console.error("Marker layer not found");
@@ -146,7 +145,6 @@ def generate_map():
 
         if (!allMarkersBackup) {{
             allMarkersBackup = targetLayer.getLayers();
-            console.log("Backup created with " + allMarkersBackup.length + " markers.");
         }}
 
         targetLayer.clearLayers();
@@ -158,14 +156,13 @@ def generate_map():
             return r >= minRate && plc >= minPlc && (type === "All" || t === type);
         }});
 
-        console.log("Displaying " + filtered.length + " markers.");
         filtered.forEach(m => targetLayer.addLayer(m));
     }}
     </script>
     """
     m.get_root().html.add_child(folium.Element(filter_html))
     m.save("index.html")
-    print("🚀 Map successfully generated: index.html (No Clustering)")
+    print("🚀 Map successfully generated: index.html (Clustering Removed & Syntax Fixed)")
 
 if __name__ == "__main__":
     generate_map()
