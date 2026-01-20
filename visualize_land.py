@@ -22,7 +22,7 @@ def generate_map():
     # Initialize Map
     m = folium.Map(location=[38.5, -7.9], zoom_start=9, tiles="cartodbpositron")
     
-    # FeatureGroup for markers - this is what the JS will search for
+    # FeatureGroup for markers
     marker_layer = folium.FeatureGroup(name="MainPropertyLayer")
     marker_layer.add_to(m)
 
@@ -49,7 +49,7 @@ def generate_map():
             icon=folium.Icon(color='green' if row['avg_rating'] >= 4 else 'orange', icon='home', prefix='fa')
         )
         
-        # Binding metadata for the JS engine - Standardized to extra_data
+        # Binding metadata for the JS engine
         marker.options['extra_data'] = {
             'rating': float(row['avg_rating']),
             'places': num_places,
@@ -58,6 +58,7 @@ def generate_map():
         marker.add_to(marker_layer)
 
     # --- THE FILTER JAVASCRIPT ---
+    # Note the double {{ }} used for CSS and JS logic
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed; z-index: 9999; }}
@@ -98,18 +99,16 @@ def generate_map():
     }}
 
     function findLayer() {{
-        // Scans all global objects to find the Folium FeatureGroup containing our markers
         for (let key in window) {{
             try {{
                 if (window[key] instanceof L.LayerGroup || window[key] instanceof L.FeatureGroup) {{
                     let layers = window[key].getLayers();
-                    // Robust check: ensure the layer group contains markers with our metadata key
                     if (layers.length > 0 && layers[0].options && layers[0].options.extra_data) {{
                         return window[key];
                     }}
                 }}
-            } catch(e) {{ continue; }}
-        }
+            }} catch(e) {{ continue; }}
+        }}
         return null;
     }}
 
@@ -125,7 +124,6 @@ def generate_map():
             return; 
         }}
 
-        // Initialize the master list of markers on first run
         if (!markerStore) {{
             markerStore = targetLayer.getLayers();
             log("Backup created: " + markerStore.length);
