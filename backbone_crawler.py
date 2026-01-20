@@ -104,45 +104,55 @@ class P4NScraper:
 
         print(f"🔐 [LOGIN] Attempting for user: {P4N_USER}...")
         try:
-            # Click Account Button to open dropdown
+            # 1. Open the modal
             await page.click(".pageHeader-account-button")
             await asyncio.sleep(1)
-            
-            # Click Login link in dropdown
             await page.click(".pageHeader-account-dropdown >> text='Login'", force=True)
-            await page.wait_for_selector("#signinUserId", state="visible", timeout=10000)
             
-            # Use fill() for immediate and reliable value setting
+            # 2. Fill credentials (using fill for reliability)
+            await page.wait_for_selector("#signinUserId", state="visible", timeout=10000)
             await page.locator("#signinUserId").fill(P4N_USER)
             await page.locator("#signinPassword").fill(P4N_PASS)
             
-            # Click submit
+            # 3. Submit and wait for the specific result
+            print("⏳ [LOGIN] Submitting credentials...")
             await page.click(".modal-footer button[type='submit']:has-text('Login')", force=True)
             
-            # Wait for navigation and session update
-            await page.wait_for_load_state("networkidle")
-            await asyncio.sleep(5)
-            
-            # --- VERIFICATION STEP ---
-            # Check if username appears in the account button as requested
+            # --- CRITICAL FIX: WAIT FOR STATE TRANSITION ---
+            # We wait for either the modal to disappear OR an error message to appear.
+            # If the modal disappears, we are likely logged in.
             try:
-                account_span = page.locator(".pageHeader-account-button span")
-                username_found = await account_span.inner_text()
-                if P4N_USER.lower() in username_found.lower():
-                    print(f"✅ [LOGIN] Verified successfully: {username_found}")
-                    await page.screenshot(path="login_success.png", full_page=True)
-                    return True
-                else:
-                    print(f"❌ [LOGIN] Validation failed. Found text: '{username_found}'")
+                # Wait for the modal to be removed from the DOM or hidden
+                await page.wait_for_selector("#signinModal", state="hidden", timeout=12000)
             except:
-                print("❌ [LOGIN] Verification element not found.")
+                # If it's still there, check if an error message was injected into the DOM
+                error_exists = await page.locator("text='ID or password error'").is_visible()
+                if error_exists:
+                    print("❌ [LOGIN] Server rejected credentials: ID or password error.")
+                    await page.screenshot(path="login_failure_error_msg.png")
+                    return False
 
-            await page.screenshot(path="login_failure.png")
-            return False
+            # 4. FINAL VERIFICATION (Ensure redirect and session update finished)
+            await page.wait_for_load_state("networkidle")
+            await asyncio.sleep(3) # Short buffer for JS to update the header
+
+            account_span = page.locator(".pageHeader-account-button span")
+            # Ensure the element is present before reading
+            await account_span.wait_for(state="visible", timeout=5000)
+            username_found = await account_span.inner_text()
+            
+            if P4N_USER.lower() in username_found.lower():
+                print(f"✅ [LOGIN] Verified successfully: Logged in as '{username_found}'")
+                await page.screenshot(path="login_success_verified.png", full_page=True)
+                return True
+            else:
+                print(f"❌ [LOGIN] Validation failed. Header still shows: '{username_found}'")
+                await page.screenshot(path="login_failed_final_check.png")
+                return False
 
         except Exception as e: 
             print(f"❌ [LOGIN] Error during process: {e}")
-            await page.screenshot(path="login_error.png")
+            await page.screenshot(path="login_exception.png")
             return False
 
     async def analyze_with_ai(self, raw_data):
