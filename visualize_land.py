@@ -22,8 +22,9 @@ def generate_map():
     # Center on Alentejo
     m = folium.Map(location=[38.5, -7.9], zoom_start=9, tiles="cartodbpositron")
     
-    # We use a LayerGroup instead of MarkerCluster to show all points all the time
-    marker_layer = folium.FeatureGroup(name="Properties").add_to(m)
+    # FeatureGroup ensures all points are shown all the time (no bundling)
+    # We assign a specific 'name' to help the JS find it
+    marker_layer = folium.FeatureGroup(name="PropertyLayer").add_to(m)
 
     prop_types = sorted(df_clean['location_type'].unique().tolist())
 
@@ -78,14 +79,13 @@ def generate_map():
             tooltip=f"{row['title']} ({row['avg_rating']}⭐)"
         )
         
-        # Attach data to marker options for JS filtering
+        # Attach metadata to marker options for JS
         marker.options['data_rating'] = float(row['avg_rating'])
         marker.options['data_places'] = num_places
         marker.options['data_type'] = str(row['location_type'])
         marker.add_to(marker_layer)
 
     # --- UI & JAVASCRIPT ---
-    # Doubled curly braces {{ }} prevent Python f-string errors while keeping JS valid
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #eee; }}
@@ -93,6 +93,8 @@ def generate_map():
         #legend-panel {{ position: fixed; bottom: 30px; left: 20px; z-index: 9999; padding: 15px; width: 160px; font-size: 13px; }}
         .legend-item {{ display: flex; align-items: center; margin-bottom: 5px; }}
         .dot {{ height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }}
+        .btn-primary {{ background: #2c3e50; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }}
+        .btn-secondary {{ background: #95a5a6; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }}
     </style>
 
     <div id="legend-panel" class="map-overlay">
@@ -104,6 +106,8 @@ def generate_map():
 
     <div id="filter-panel" class="map-overlay">
         <h3 style="margin-top:0; font-size:18px; color: #2c3e50;">Filter Map</h3>
+        <p style="font-size: 14px; margin-bottom: 15px;">Showing: <b id="match-count">{len(df_clean)}</b> results</p>
+        
         <div style="margin-bottom:15px;">
             <label style="font-size:12px; font-weight:bold;">Min Rating: <span id="val-rating" style="color:#27d9a1">0</span></label>
             <input type="range" id="filter-rating" min="0" max="5" step="0.1" value="0" oninput="document.getElementById('val-rating').innerText = this.value" style="width:100%;">
@@ -119,7 +123,8 @@ def generate_map():
                 {" ".join([f'<option value="{t}">{t}</option>' for t in prop_types])}
             </select>
         </div>
-        <button onclick="applyFilters()" style="width:100%; background:#2c3e50; color:white; padding:12px; border-radius:6px; cursor:pointer; font-weight:bold;">Apply Filters</button>
+        <button onclick="applyFilters()" class="btn-primary">Apply Filters</button>
+        <button onclick="resetFilters()" class="btn-secondary">Reset All</button>
     </div>
 
     <script>
@@ -132,9 +137,15 @@ def generate_map():
 
         var targetLayer = null;
         for (let key in window) {{
+            // Look for the FeatureGroup/LayerGroup used for markers
             if (window[key] instanceof L.FeatureGroup || window[key] instanceof L.LayerGroup) {{
-                targetLayer = window[key];
-                break;
+                // Robust check: Ensure the group has the correct name or at least contains layers
+                if (window[key].options && window[key].options.name === "PropertyLayer") {{
+                    targetLayer = window[key];
+                    break;
+                }}
+                // Fallback: Use the first one found if name check fails
+                if (!targetLayer) targetLayer = window[key];
             }}
         }}
 
@@ -143,6 +154,7 @@ def generate_map():
             return;
         }}
 
+        // Initialize backup from the actual live layers on first run
         if (!allMarkersBackup) {{
             allMarkersBackup = targetLayer.getLayers();
         }}
@@ -150,19 +162,31 @@ def generate_map():
         targetLayer.clearLayers();
 
         const filtered = allMarkersBackup.filter(m => {{
-            const r = m.options.data_rating || 0;
-            const plc = m.options.data_places || 0;
-            const t = m.options.data_type || "";
+            // Ensure we handle missing metadata gracefully
+            const r = (m.options && m.options.data_rating !== undefined) ? m.options.data_rating : 0;
+            const plc = (m.options && m.options.data_places !== undefined) ? m.options.data_places : 0;
+            const t = (m.options && m.options.data_type !== undefined) ? m.options.data_type : "";
+            
             return r >= minRate && plc >= minPlc && (type === "All" || t === type);
         }});
 
         filtered.forEach(m => targetLayer.addLayer(m));
+        document.getElementById('match-count').innerText = filtered.length;
+    }}
+
+    function resetFilters() {{
+        document.getElementById('filter-rating').value = 0;
+        document.getElementById('val-rating').innerText = 0;
+        document.getElementById('filter-places').value = 0;
+        document.getElementById('val-places').innerText = 0;
+        document.getElementById('filter-type').value = "All";
+        applyFilters();
     }}
     </script>
     """
     m.get_root().html.add_child(folium.Element(filter_html))
     m.save("index.html")
-    print("🚀 Map successfully generated: index.html (Clustering Removed & Syntax Fixed)")
+    print("🚀 Map successfully generated: index.html (Fixed Filter & No Bundling)")
 
 if __name__ == "__main__":
     generate_map()
