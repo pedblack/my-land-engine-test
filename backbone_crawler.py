@@ -22,6 +22,11 @@ TARGET_URLS = [
 ]
 
 # Initialize 2026 Client
+GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
+if not GEMINI_API_KEY:
+    raise ValueError("❌ GOOGLE_API_KEY not found! Set it as an environment variable.")
+
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 class P4NScraper:
