@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      contents: write
+      contents: write  # CRITICAL: Allows the bot to push CSV and HTML updates
 
     steps:
       - name: Checkout Repository
@@ -46,11 +46,12 @@ jobs:
           # Stage the CSV database and the generated HTML map
           git add backbone_locations.csv portugal_land_map.html
           
-          # Commit only if files changed
+          # Check for changes before committing to prevent empty commit errors
           if git diff --staged --quiet; then
-            echo "No changes to data or map."
+            echo "No new data discovered today. Skipping commit."
           else
             git commit -m "Auto-update Land Database & Map [skip ci]"
+            # Use rebase to handle cases where files changed on the server during the run
             git pull --rebase origin main
             git push origin main
           fi
