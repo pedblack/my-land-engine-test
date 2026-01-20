@@ -18,10 +18,10 @@ DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
 
 # --- ADAPTED SETTINGS ---
-AI_DELAY = 1.5               
-STALENESS_DAYS = 30          
-MIN_REVIEWS_THRESHOLD = 3    
-DEV_LIMIT = 1                
+AI_DELAY = 1.5
+STALENESS_DAYS = 30
+MIN_REVIEWS_THRESHOLD = 5
+DEV_LIMIT = 1
 
 # --- PARTITION SETTINGS ---
 URL_LIST_FILE = "url_list.txt"   
@@ -241,7 +241,6 @@ class P4NScraper:
                 "parking_min_eur": ai_data.get("parking_min", 0),
                 "parking_max_eur": ai_data.get("parking_max", 0),
                 "electricity_eur": ai_data.get("electricity_eur", 0),
-                # New Fields
                 "intensity_index": occ.get("intensity_index", 0) if occ else 0,
                 "arrival_window": occ.get("scarcity_arrival_window", "anytime") if occ else "anytime",
                 "booking_required": occ.get("booking_required", False) if occ else False,
