@@ -69,6 +69,6 @@ jobs:
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
-          # Add the new state file here
+          # Ensure queue_state.json is added to track progress
           git add backbone_locations.csv portugal_land_map.html queue_state.json pipeline_execution.log
-          git diff --staged --quiet || (git commit -m "Auto-update state & map [skip ci]" && git push)
+          git diff --staged --quiet || (git commit -m "Auto-update state & data [skip ci]" && git push)
