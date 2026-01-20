@@ -11,7 +11,7 @@ from google.genai import types
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
-# --- CONFIGURABLE CONSTANTS ---
+# --- CONFIG ---
 MAX_REVIEWS = 100            
 MODEL_NAME = "gemini-2.5-flash-lite" 
 PROD_CSV = "backbone_locations.csv"
@@ -19,9 +19,9 @@ DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
 AI_DELAY = 0.5               
 
-# --- NEW QUEUE SETTINGS ---
-URL_LIST_FILE = "url_list.txt"       # File containing 30 URLs (one per line)
-STATE_FILE = "queue_state.json"      # Tracks which URL is next
+# --- PARTITION SETTINGS ---
+URL_LIST_FILE = "url_list.txt"   # File with 30 Search URLs
+STATE_FILE = "queue_state.json"  # Tracks which partition is next
 
 # --- SYSTEM SETTINGS ---
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -29,44 +29,35 @@ P4N_USER = os.environ.get("P4N_USERNAME")
 P4N_PASS = os.environ.get("P4N_PASSWORD") 
 
 class DailyQueueManager:
-    """Manages a list of URLs to process them sequentially over multiple days."""
+    """Manages 30 partitions to ensure a 30-day rolling TTL."""
     @staticmethod
-    def get_next_url():
+    def get_next_partition():
         if not os.path.exists(URL_LIST_FILE):
-            print(f"⚠️ {URL_LIST_FILE} not found. Please create it with one URL per line.")
+            print(f"⚠️ {URL_LIST_FILE} not found. Ensure 30 URLs are provided.")
             return []
-
         with open(URL_LIST_FILE, 'r') as f:
             urls = [line.strip() for line in f if line.strip()]
-
-        # Load current index from state file
+        
         state = {"current_index": 0}
         if os.path.exists(STATE_FILE):
             try:
-                with open(STATE_FILE, 'r') as f:
-                    state = json.load(f)
+                with open(STATE_FILE, 'r') as f: state = json.load(f)
             except: pass
 
         idx = state.get("current_index", 0)
-        
-        # Reset if we've reached the end of the 30 URLs
-        if idx >= len(urls):
-            print("🔄 Reached end of URL list. Resetting to the beginning.")
-            idx = 0
+        if idx >= len(urls): idx = 0 # Loop back after 30 days
 
         target_url = urls[idx]
-        print(f"📅 DAILY QUEUE: Processing URL {idx + 1}/{len(urls)}: {target_url}")
+        print(f"📅 DAY {idx + 1}/30: Processing partition: {target_url}")
         
-        # Increment and save state for tomorrow
         state["current_index"] = idx + 1
-        with open(STATE_FILE, 'w') as f:
-            json.dump(state, f)
-            
+        with open(STATE_FILE, 'w') as f: json.dump(state, f)
         return [target_url]
 
 class PipelineLogger:
     @staticmethod
     def log_event(event_type, data):
+        """Saves deeply formatted JSON events for readability."""
         processed_content = {}
         for k, v in data.items():
             if isinstance(v, str) and (v.strip().startswith('{') or v.strip().startswith('[')):
@@ -74,12 +65,7 @@ class PipelineLogger:
                 except: processed_content[k] = v
             else: processed_content[k] = v
 
-        log_entry = {
-            "timestamp": datetime.now().isoformat(),
-            "type": event_type,
-            "content": processed_content
-        }
-        
+        log_entry = {"timestamp": datetime.now().isoformat(), "type": event_type, "content": processed_content}
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             header = f"\n{'='*30} {event_type} {'='*30}\n"
             pretty_json = json.dumps(log_entry, indent=4, default=str, ensure_ascii=False)
@@ -107,24 +93,24 @@ class P4NScraper:
 
     async def login(self, page):
         if not P4N_USER or not P4N_PASS: return
-        print(f"🔐 Attempting Login...")
+        print(f"🔐 Logging in as {P4N_USER}...")
         try:
             await page.click(".pageHeader-account-button")
             await asyncio.sleep(2)
             await page.click(".pageHeader-account-dropdown >> text='Login'", force=True)
             await page.wait_for_selector("#signinUserId", state="visible")
-            await page.locator("#signinUserId").type(P4N_USER, delay=random.randint(150, 250))
-            await page.locator("#signinPassword").type(P4N_PASS, delay=random.randint(150, 250))
+            await page.type("#signinUserId", P4N_USER, delay=random.randint(150, 300))
+            await page.type("#signinPassword", P4N_PASS, delay=random.randint(150, 300))
             await page.click(".modal-footer button[type='submit']:has-text('Login')", force=True)
             await page.wait_for_load_state("networkidle")
             await asyncio.sleep(6) 
-        except Exception: pass
+        except: pass
 
     async def analyze_with_ai(self, raw_data):
         system_instruction = (
-            "Analyze and return JSON ONLY: { 'parking_min': float, 'parking_max': float, "
-            "'electricity_eur': float, 'pros': 'string', 'cons': 'string' }. "
-            "Pros/Cons must be 3-5 words max."
+            "You are a property analyst. Return JSON ONLY. "
+            "Schema: { 'parking_min': float, 'parking_max': float, 'electricity_eur': float, 'pros': 'string', 'cons': 'string' }. "
+            "Summary fields must be 3-5 words max."
         )
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
         config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1, system_instruction=system_instruction)
@@ -135,7 +121,7 @@ class P4NScraper:
         except: return {}
 
     async def extract_atomic(self, page, url):
-        print(f"📄 Scraping: {url}")
+        print(f"📄 Extracting: {url}")
         try:
             await page.goto(url, wait_until="domcontentloaded")
             p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
@@ -156,12 +142,11 @@ class P4NScraper:
                     await asyncio.sleep(2)
                 else: break
 
-            review_els = await page.locator(".place-feedback-article-content").all()
             raw_payload = {
                 "p4n_id": p_id,
                 "parking_cost": await self._get_dl(page, "Parking cost"),
                 "services_cost": await self._get_dl(page, "Price of services"),
-                "reviews": [await r.text_content() for r in review_els[:self.current_max_reviews]]
+                "reviews": [await r.text_content() for r in (await page.locator(".place-feedback-article-content").all())[:self.current_max_reviews]]
             }
             
             ai_data = await self.analyze_with_ai(raw_payload)
@@ -194,33 +179,23 @@ class P4NScraper:
             except: pass
             await self.login(page)
 
-            # --- USE THE DAILY QUEUE MANAGER ---
-            target_urls = DailyQueueManager.get_next_url()
+            # Picking just one partition based on the 30-day cycle
+            target_urls = DailyQueueManager.get_next_partition()
 
             for url in target_urls:
-                try:
-                    await page.goto(url, wait_until="networkidle")
-                    links = await page.locator("a[href*='/place/']").all()
-                    for link in links:
-                        href = await link.get_attribute("href")
-                        if href:
-                            self.discovery_links.append(f"https://park4night.com{href}" if href.startswith("/") else href)
-                        if self.is_dev and len(self.discovery_links) >= 1: break
-                except: pass
+                await page.goto(url, wait_until="networkidle")
+                links = await page.locator("a[href*='/place/']").all()
+                for link in links:
+                    href = await link.get_attribute("href")
+                    if href: self.discovery_links.append(f"https://park4night.com{href}" if href.startswith("/") else href)
 
             queue = []
             for link in list(set(self.discovery_links)):
                 m = re.search(r'/place/(\d+)', link)
                 if not m: continue
-                p_id = m.group(1)
-                if self.is_dev:
-                    queue.append(link)
-                    break
-                is_stale = True
-                if not self.existing_df.empty and p_id in self.existing_df['p4n_id'].astype(str).values:
-                    last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == p_id]['last_scraped'].iloc[0]
-                    if (datetime.now() - last_date) < timedelta(days=7): is_stale = False
-                if is_stale: queue.append(link)
+                p_id = str(m.group(1))
+                # For daily rotation, we treat all links in the partition as fresh
+                queue.append(link)
 
             for link in queue:
                 await self.extract_atomic(page, link)
@@ -233,6 +208,7 @@ class P4NScraper:
         new_df = pd.DataFrame(self.processed_batch)
         final_df = pd.concat([new_df, self.existing_df], ignore_index=True)
         final_df['last_scraped'] = pd.to_datetime(final_df['last_scraped'])
+        # Drop duplicates by p4n_id, keeping the newest scrape (the one from today)
         final_df.sort_values('last_scraped', ascending=False).drop_duplicates('p4n_id').to_csv(self.csv_file, index=False)
 
 if __name__ == "__main__":
