@@ -65,10 +65,10 @@ jobs:
           retention-days: ${{ github.event.inputs.mode == 'dev' && 1 || 30 }}
 
       - name: Commit and Push (Prod Only)
-        # We only commit the real database in prod mode
         if: github.event.inputs.mode != 'dev'
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
-          git add backbone_locations.csv portugal_land_map.html
-          git diff --staged --quiet || (git commit -m "Auto-update [skip ci]" && git push)
+          # Add the new state file here
+          git add backbone_locations.csv portugal_land_map.html queue_state.json pipeline_execution.log
+          git diff --staged --quiet || (git commit -m "Auto-update state & map [skip ci]" && git push)
