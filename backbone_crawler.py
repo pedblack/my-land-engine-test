@@ -109,8 +109,15 @@ class P4NScraper:
             await page.click(".modal-footer button[type='submit']:has-text('Login')", force=True)
             await page.wait_for_load_state("networkidle")
             await asyncio.sleep(6)
-            print("✅ [LOGIN] Success")
-        except: print("❌ [LOGIN] Failed")
+            
+            # --- SCREENSHOT AFTER LOGIN ---
+            await page.screenshot(path="login_success.png", full_page=True)
+            print("✅ [LOGIN] Success - Screenshot captured: login_success.png")
+            
+        except Exception as e: 
+            print(f"❌ [LOGIN] Failed: {e}")
+            # Capture screenshot even on failure for debugging
+            await page.screenshot(path="login_failure.png")
 
     async def analyze_with_ai(self, raw_data):
         system_instruction = (
