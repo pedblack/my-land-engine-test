@@ -82,7 +82,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 class P4NScraper:
     def __init__(self, is_dev=False, force=False):
         self.is_dev = is_dev
-        self.force = force # New force recrawl flag
+        self.force = force 
         self.csv_file = DEV_CSV if is_dev else PROD_CSV
         self.processed_batch = []
         self.existing_df = self._load_existing()
@@ -98,23 +98,52 @@ class P4NScraper:
         return pd.DataFrame()
 
     async def login(self, page):
-        if not P4N_USER or not P4N_PASS: return
+        if not P4N_USER or not P4N_PASS:
+            print("⚠️ [LOGIN] Missing credentials.")
+            return False
+
         print(f"🔐 [LOGIN] Attempting for user: {P4N_USER}...")
         try:
+            # Click Account Button to open dropdown
             await page.click(".pageHeader-account-button")
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
+            
+            # Click Login link in dropdown
             await page.click(".pageHeader-account-dropdown >> text='Login'", force=True)
-            await page.wait_for_selector("#signinUserId", state="visible")
-            await page.locator("#signinUserId").type(P4N_USER, delay=random.randint(150, 250))
-            await page.locator("#signinPassword").type(P4N_PASS, delay=random.randint(150, 300))
+            await page.wait_for_selector("#signinUserId", state="visible", timeout=10000)
+            
+            # Use fill() for immediate and reliable value setting
+            await page.locator("#signinUserId").fill(P4N_USER)
+            await page.locator("#signinPassword").fill(P4N_PASS)
+            
+            # Click submit
             await page.click(".modal-footer button[type='submit']:has-text('Login')", force=True)
+            
+            # Wait for navigation and session update
             await page.wait_for_load_state("networkidle")
-            await asyncio.sleep(6)
-            await page.screenshot(path="login_success.png", full_page=True)
-            print("✅ [LOGIN] Success - Screenshot captured.")
-        except Exception as e: 
+            await asyncio.sleep(5)
+            
+            # --- VERIFICATION STEP ---
+            # Check if username appears in the account button as requested
+            try:
+                account_span = page.locator(".pageHeader-account-button span")
+                username_found = await account_span.inner_text()
+                if P4N_USER.lower() in username_found.lower():
+                    print(f"✅ [LOGIN] Verified successfully: {username_found}")
+                    await page.screenshot(path="login_success.png", full_page=True)
+                    return True
+                else:
+                    print(f"❌ [LOGIN] Validation failed. Found text: '{username_found}'")
+            except:
+                print("❌ [LOGIN] Verification element not found.")
+
             await page.screenshot(path="login_failure.png")
-            print(f"❌ [LOGIN] Failed: {e}")
+            return False
+
+        except Exception as e: 
+            print(f"❌ [LOGIN] Error during process: {e}")
+            await page.screenshot(path="login_error.png")
+            return False
 
     async def analyze_with_ai(self, raw_data):
         self.stats["gemini_calls"] += 1
@@ -194,13 +223,19 @@ class P4NScraper:
     async def start(self):
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(user_agent="Mozilla/5.0...")
+            context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             page = await context.new_page()
             await Stealth().apply_stealth_async(page)
             await page.goto("https://park4night.com/en", wait_until="networkidle")
             try: await page.click(".cc-btn-accept", timeout=3000)
             except: pass
-            await self.login(page)
+            
+            # --- LOGIN PROCESS ---
+            logged_in = await self.login(page)
+            if not logged_in and not self.is_dev:
+                print("🛑 [CRITICAL] Login failed in production mode. Aborting run.")
+                await browser.close()
+                return
 
             target_urls, current_idx, total_idx = DailyQueueManager.get_next_partition()
             print(f"\n📅 [PARTITION] Day {current_idx} of {total_idx}")
@@ -220,7 +255,6 @@ class P4NScraper:
                 if self.is_dev and len(queue) >= DEV_LIMIT: break
                 p_id = link.split("/")[-1]
                 
-                # Logic: If 'force' is True, we always recrawl.
                 is_stale = True
                 if not self.force and not self.existing_df.empty and p_id in self.existing_df['p4n_id'].astype(str).values:
                     last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == p_id]['last_scraped'].iloc[0]
