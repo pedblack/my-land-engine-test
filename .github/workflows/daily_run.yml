@@ -2,14 +2,13 @@ name: Daily Land Search & Map
 
 on:
   schedule:
-    # Runs at 08:00 UTC every day
-    - cron: '0 8 * * *'
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+    - cron: '0 8 * * *' # 08:00 UTC daily
+  workflow_dispatch: 
 
 jobs:
   scrape_and_visualize:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # Safety for deep crawling
+    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -26,18 +25,15 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
-      - name: Install Playwright Browsers & System Deps
-        run: |
-          # This still needs to be run separately after the pip install
-          playwright install chromium --with-deps
+      - name: Install Playwright Browsers
+        run: playwright install chromium --with-deps
 
       - name: Run Atomic Scraper & Gemini AI Analysis
-        run: python backbone_crawler.py
         env:
-          # Ensure you have added GOOGLE_API_KEY to Settings > Secrets > Actions
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: python backbone_crawler.py
 
       - name: Generate Geospatial Visualization
         run: python visualize_land.py
@@ -47,12 +43,14 @@ jobs:
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
           
-          # Stage the database and the interactive HTML map
+          # Stage the CSV database and the generated HTML map
           git add backbone_locations.csv portugal_land_map.html
           
-          # Commit only if files actually changed
-          git commit -m "Auto-update Land Database & Map [skip ci]" || echo "No changes to commit"
-          
-          # Use rebase to handle race conditions if the repo was modified during the run
-          git pull --rebase origin main
-          git push origin main
+          # Commit only if files changed
+          if git diff --staged --quiet; then
+            echo "No changes to data or map."
+          else
+            git commit -m "Auto-update Land Database & Map [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi
