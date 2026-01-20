@@ -54,12 +54,14 @@ jobs:
           fi
           python visualize_land.py
 
-      - name: Upload Pipeline Logs
+      - name: Upload Pipeline Artifacts
+        if: always() # Ensure this runs even if the scraper fails
         uses: actions/upload-artifact@v4
         with:
-          name: pipeline-audit-logs
-          path: pipeline_execution.log
-          # TERNARY LOGIC: 1 day if dev, 30 days otherwise
+          name: pipeline-debug-package
+          path: |
+            pipeline_execution.log
+            debug_*.png
           retention-days: ${{ github.event.inputs.mode == 'dev' && 1 || 30 }}
 
       - name: Commit and Push (Prod Only)
