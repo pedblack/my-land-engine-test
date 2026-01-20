@@ -1,8 +1,8 @@
-firecrawl-py>=1.0.0
-pydantic
+firecrawl-py (>=1.0.0)
+folium
+google-genai
+pandas
 playwright
 playwright-stealth
-pandas
-tenacity
-google-genai
-folium
+pydantic
+python-dotenv
