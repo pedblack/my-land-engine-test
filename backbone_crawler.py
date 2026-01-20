@@ -12,7 +12,6 @@ from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
-MAX_REVIEWS = 100            
 MODEL_NAME = "gemini-2.5-flash-lite" 
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
@@ -45,9 +44,20 @@ class DailyQueueManager:
         idx = state.get("current_index", 0)
         if idx >= len(urls): idx = 0
         target_url = urls[idx]
-        state["current_index"] = idx + 1
-        with open(STATE_FILE, 'w') as f: json.dump(state, f)
         return [target_url], idx + 1, len(urls)
+
+    @staticmethod
+    def increment_state():
+        if not os.path.exists(URL_LIST_FILE): return
+        with open(URL_LIST_FILE, 'r') as f:
+            urls = [line.strip() for line in f if line.strip()]
+        state = {"current_index": 0}
+        if os.path.exists(STATE_FILE):
+            try:
+                with open(STATE_FILE, 'r') as f: state = json.load(f)
+            except: pass
+        state["current_index"] = (state.get("current_index", 0) + 1) % len(urls)
+        with open(STATE_FILE, 'w') as f: json.dump(state, f)
 
 class PipelineLogger:
     @staticmethod
@@ -69,6 +79,8 @@ class P4NScraper:
     def __init__(self, is_dev=False):
         self.is_dev = is_dev
         self.csv_file = DEV_CSV if is_dev else PROD_CSV
+        self.discovery_links = []
+        self.processed_batch = []
         self.existing_df = self._load_existing()
 
     def _load_existing(self):
@@ -97,25 +109,25 @@ class P4NScraper:
         except: print("❌ [LOGIN] Failed")
 
     async def analyze_with_ai(self, raw_data):
-        """AI analysis with recurrence frequency and language detection."""
+        """High-capacity batch AI analysis for all reviews found on page."""
         system_instruction = (
-            "Analyze property data and return JSON ONLY. "
+            "Analyze all property data and return JSON ONLY. "
             "Schema: { "
             "'parking_min': float, 'parking_max': float, 'electricity_eur': float, "
             "'pros': [ {'topic': 'string', 'count': int} ], "
             "'cons': [ {'topic': 'string', 'count': int} ], "
             "'languages': [ {'lang': 'string', 'count': int} ] "
             "}. "
-            "1. List 'pros', 'cons', and 'languages' by recurrence frequency (highest count first). "
-            "2. 'count' is total occurrences across all provided reviews. "
-            "3. Topics must be extremely succinct (3-5 words max). "
-            "4. For languages, use full names (e.g., 'French', 'German')."
+            "1. List 'pros', 'cons', and 'languages' by RECURRENCE FREQUENCY (highest count first). "
+            "2. 'count' is the total mentions of that theme or language across ALL reviews. "
+            "3. Topics must be succinctly summarized (3-5 words max). "
+            "4. Language names should be full (e.g., 'French', 'German')."
         )
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
         config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1, system_instruction=system_instruction)
         try:
             await asyncio.sleep(AI_DELAY) 
-            response = await client.aio.models.generate_content(model=MODEL_NAME, contents=f"ANALYZE BATCH:\n{json_payload}", config=config)
+            response = await client.aio.models.generate_content(model=MODEL_NAME, contents=f"ANALYZE ALL:\n{json_payload}", config=config)
             return json.loads(response.text)
         except: return {}
 
@@ -142,20 +154,21 @@ class P4NScraper:
                 avg_rating = float(re.search(r'(\d+\.?\d*)', raw_rate).group(1))
             except: pass
 
-            # --- REVIEWS ---
+            # --- UNLIMITED HIDDEN REVIEWS ---
+            # Grabbing every single review currently in the DOM
             review_els = await page.locator(".place-feedback-article-content").all()
-            reviews_text = [await r.text_content() for r in review_els[:MAX_REVIEWS]]
+            reviews_text = [await r.text_content() for r in review_els]
 
             raw_payload = {
                 "p4n_id": p_id,
                 "parking_cost": await self._get_dl(page, "Parking cost"),
                 "services_cost": await self._get_dl(page, "Price of services"),
-                "reviews_to_summarize": reviews_text
+                "all_reviews": reviews_text
             }
             
             ai_data = await self.analyze_with_ai(raw_payload)
             
-            # Formatted strings for CSV storage
+            # Convert ranked lists to strings for storage
             pros_str = "; ".join([f"{p['topic']} ({p['count']})" for p in ai_data.get('pros', [])])
             cons_str = "; ".join([f"{c['topic']} ({c['count']})" for c in ai_data.get('cons', [])])
             lang_str = "; ".join([f"{l['lang']} ({l['count']})" for l in ai_data.get('languages', [])])
@@ -167,9 +180,7 @@ class P4NScraper:
                 "parking_min_eur": ai_data.get("parking_min", 0),
                 "parking_max_eur": ai_data.get("parking_max", 0),
                 "electricity_eur": ai_data.get("electricity_eur", 0),
-                "ai_pros": pros_str,
-                "ai_cons": cons_str,
-                "top_languages": lang_str,
+                "ai_pros": pros_str, "ai_cons": cons_str, "top_languages": lang_str,
                 "last_scraped": datetime.now()
             }
             PipelineLogger.log_event("STORAGE_ROW", row)
@@ -207,12 +218,16 @@ class P4NScraper:
             skipped_count = 0
             for link in discovered:
                 p_id = link.split("/")[-1]
+                if self.is_dev:
+                    if len(queue) < 1: queue.append(link)
+                    continue
+
                 is_stale = True
                 if not self.existing_df.empty and p_id in self.existing_df['p4n_id'].astype(str).values:
                     last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == p_id]['last_scraped'].iloc[0]
                     if pd.notnull(last_date) and (datetime.now() - last_date) < timedelta(days=STALENESS_DAYS):
                         is_stale = False
-                if is_stale or self.is_dev: queue.append(link)
+                if is_stale: queue.append(link)
                 else: skipped_count += 1
 
             print(f"🔍 Found {len(discovered)} items. TTL skip: {skipped_count}. Processing: {len(queue)}\n")
@@ -221,6 +236,7 @@ class P4NScraper:
             
             await browser.close()
             self._upsert_and_save()
+            if not self.is_dev: DailyQueueManager.increment_state()
 
     def _upsert_and_save(self):
         if not self.processed_batch: return
@@ -228,6 +244,7 @@ class P4NScraper:
         final_df = pd.concat([new_df, self.existing_df], ignore_index=True)
         final_df['last_scraped'] = pd.to_datetime(final_df['last_scraped'])
         final_df.sort_values('last_scraped', ascending=False).drop_duplicates('p4n_id').to_csv(self.csv_file, index=False)
+        print(f"\n🚀 [FINISH] Saved {len(self.processed_batch)} records.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
