@@ -25,12 +25,12 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          # Explicitly listing all required libraries to avoid ModuleNotFoundErrors
-          pip install playwright playwright-stealth pandas tenacity google-generativeai folium
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Install Playwright Browsers & System Deps
         run: |
-          # Mandatory for running Chromium on headless Linux
+          # This still needs to be run separately after the pip install
           playwright install chromium --with-deps
 
       - name: Run Atomic Scraper & Gemini AI Analysis
