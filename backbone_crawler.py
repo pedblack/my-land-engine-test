@@ -4,6 +4,7 @@ import re
 import os
 import json
 import argparse
+import time
 import pandas as pd
 from datetime import datetime, timedelta
 from google import genai
@@ -119,8 +120,9 @@ class P4NScraper:
 
         ts_print(f"🔐 [LOGIN] Attempting for user: {P4N_USER}...")
         try:
+            t_start = time.time()
             await page.click(".pageHeader-account-button")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
             await page.click(".pageHeader-account-dropdown >> text='Login'", force=True)
             await page.wait_for_selector("#signinUserId", state="visible", timeout=10000)
             
@@ -128,66 +130,25 @@ class P4NScraper:
             await page.locator("#signinPassword").fill(P4N_PASS)
             
             ts_print("⏳ [LOGIN] Submitting credentials...")
-            submit_selector = "#signinModal .modal-footer button[type='submit']:has-text('Login')"
-            await page.locator(submit_selector).evaluate("el => el.click()")
-            await page.keyboard.press("Enter")
+            await page.locator("#signinModal .modal-footer button[type='submit']").click()
             
-            # Wait for navigation/UI to settle
-            await page.wait_for_load_state("networkidle")
-            
-            # Use reactive check for username instead of full 10s wait if possible
-            try:
-                await page.wait_for_function(
-                    f"""() => document.querySelector('.pageHeader-account-button span')?.innerText.toLowerCase().includes('{P4N_USER.lower()}')""",
-                    timeout=10000
-                )
-            except:
-                await asyncio.sleep(5) # Fallback wait
-            
-            account_span = page.locator(".pageHeader-account-button span")
-            username_found = (await account_span.inner_text()).strip()
-            if P4N_USER.lower() in username_found.lower():
-                ts_print(f"✅ [LOGIN] Verified successfully: {username_found}")
-                return True
-
-            await page.screenshot(path=f"login_failure_{int(datetime.now().timestamp())}.png")
-            return False
+            # Wait for text update to verify login (much faster than networkidle)
+            await page.wait_for_function(
+                f"""() => document.querySelector('.pageHeader-account-button span')?.innerText.toLowerCase().includes('{P4N_USER.lower()}')""",
+                timeout=12000
+            )
+            ts_print(f"✅ [LOGIN] Success (Took {time.time() - t_start:.2f}s)")
+            return True
         except Exception as e: 
             ts_print(f"❌ [LOGIN] Error: {e}")
             return False
 
     async def analyze_with_ai(self, raw_data):
         self.stats["gemini_calls"] += 1
+        t_start = time.time()
         system_instruction = (
             "Analyze the provided property data and reviews. Return JSON ONLY. "
-            "If reviews < 5, return null for occupancy_analysis. Use snake_case.\n\n"
-            "Schema:\n"
-            "{\n"
-            "  \"num_places\": int,\n"
-            "  \"parking_min\": float,\n"
-            "  \"parking_max\": float,\n"
-            "  \"electricity_eur\": float,\n"
-            "  \"occupancy_analysis\": {\n"
-            "    \"intensity_index\": float,\n"
-            "    \"scarcity_arrival_window\": string,\n"
-            "    \"demand_drivers\": [\"string\"],\n"
-            "    \"booking_required\": boolean\n"
-            "  },\n"
-            "  \"monthly_review_histogram\": { \"YYYY-MM\": int },\n"
-            "  \"pros_cons\": {\n"
-            "    \"pros\": [ {\"topic\": \"string\", \"count\": int} ],\n"
-            "    \"cons\": [ {\"topic\": \"string\", \"count\": int} ]\n"
-            "  }\n"
-            "}\n\n"
-            "Demand Scoring Playbook:\n"
-            "- intensity_index: 0-10. Score 10 for \"completely full/turned away,\" 7 for \"must arrive early,\" 4 for \"busy but accessible,\" 0-2 for \"empty/quiet.\"\n"
-            "- scarcity_arrival_window: Extract median time mentioned (e.g., \"before_15:00\"). If no time is mentioned, return \"anytime\".\n"
-            "- demand_drivers: Tag keywords like [summer_peak, weekend_spike, event_related, transit_hub].\n"
-            "- booking_required: true if reviews mention calling/booking ahead is the only way to get a spot.\n\n"
-            "Instructions:\n"
-            "1. Extract 'num_places' from 'places_count'.\n"
-            "2. Populate the monthly_review_histogram by counting review dates.\n"
-            "3. List Pros/Cons by frequency. Topics must be 3-5 words max."
+            "If reviews < 5, return null for occupancy_analysis. Use snake_case."
         )
 
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
@@ -195,84 +156,75 @@ class P4NScraper:
         try:
             await asyncio.sleep(AI_DELAY) 
             response = await client.aio.models.generate_content(model=MODEL_NAME, contents=f"ANALYZE:\n{json_payload}", config=config)
-            
             ai_json = json.loads(response.text)
+            ts_print(f"🤖 [AI] Analysis complete (Took {time.time() - t_start:.2f}s)")
             PipelineLogger.log_event("GEMINI_RESPONSE", ai_json)
-            
             return ai_json
         except Exception as e:
-            PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e), "raw_response": getattr(response, 'text', 'N/A')})
+            PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e)})
             return {}
 
     async def extract_atomic(self, page, url, current_num, total_num):
         ts_print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
         self.stats["read"] += 1
         try:
-            await page.goto(url, wait_until="domcontentloaded")
+            # TIMER 1: Page Navigation (Target: < 10s)
+            t_nav = time.time()
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_selector(".place-feedback-average", timeout=10000)
+            nav_elapsed = time.time() - t_nav
+
+            # TIMER 2: Data Extraction (Target: < 3s)
+            t_dom = time.time()
             stats_container = page.locator(".place-feedback-average")
             raw_count_text = await stats_container.locator("strong").inner_text()
             count_match = re.search(r'(\d+)', raw_count_text)
             actual_feedback_count = int(count_match.group(1)) if count_match else 0
             
             if actual_feedback_count < MIN_REVIEWS_THRESHOLD:
-                ts_print(f"🗑️  [DISCARD] Insufficient feedback.")
+                ts_print(f"🗑️  [DISCARD] Low feedback ({actual_feedback_count})")
                 self.stats["discarded_low_feedback"] += 1
                 return
 
             p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
             title = (await page.locator("h1").first.inner_text()).split('\n')[0].strip()
-            location_type = "Unknown"
-            try: location_type = await page.locator(".place-header-access img").get_attribute("title")
-            except: pass
             
-            lat, lng = 0.0, 0.0
-            coord_link = await page.locator("a[href*='lat='][href*='lng=']").first.get_attribute("href")
-            if coord_link:
-                m = re.search(r'lat=([-+]?\d*\.\d+|\d+)&lng=([-+]?\d*\.\d+|\d+)', coord_link)
-                if m: lat, lng = float(m.group(1)), float(m.group(2))
-
+            # Sliced extraction for speed
             review_articles = await page.locator(".place-feedback-article").all()
             formatted_reviews = []
-            for article in review_articles:
+            for article in review_articles[:15]:
                 try:
                     date_val = await article.locator("time").get_attribute("datetime") or "Unknown"
                     text_val = await article.locator(".place-feedback-article-content").inner_text()
-                    formatted_reviews.append(f"Review [{date_val}]: {text_val.strip()}")
+                    formatted_reviews.append(f"[{date_val}]: {text_val.strip()}")
                 except: continue
 
             raw_payload = {
                 "places_count": await self._get_dl(page, "Number of places"),
                 "parking_cost": await self._get_dl(page, "Parking cost"),
-                "services_cost": await self._get_dl(page, "Price of services"),
                 "all_reviews": formatted_reviews 
             }
+            dom_elapsed = time.time() - t_dom
+            
+            ts_print(f"⏱️  Speed: Nav {nav_elapsed:.1f}s | DOM {dom_elapsed:.1f}s")
             
             ai_data = await self.analyze_with_ai(raw_payload)
-            
             occ = ai_data.get("occupancy_analysis") or {}
             pc = ai_data.get("pros_cons") or {}
 
             row = {
-                "p4n_id": p_id, "title": title, "url": url, "latitude": lat, "longitude": lng,
-                "location_type": location_type, 
+                "p4n_id": p_id, "title": title, "url": url, 
                 "num_places": ai_data.get("num_places", 0),
                 "total_reviews": actual_feedback_count, 
                 "avg_rating": float(re.search(r'(\d+\.?\d*)', await stats_container.locator(".text-gray").inner_text()).group(1)),
-                "parking_min_eur": ai_data.get("parking_min", 0),
-                "parking_max_eur": ai_data.get("parking_max", 0),
-                "electricity_eur": ai_data.get("electricity_eur", 0),
-                "intensity_index": occ.get("intensity_index", 0) if occ else 0,
-                "arrival_window": occ.get("scarcity_arrival_window", "anytime") if occ else "anytime",
-                "booking_required": occ.get("booking_required", False) if occ else False,
-                "demand_drivers": "; ".join(occ.get("demand_drivers", [])) if occ else "",
-                "review_histogram": json.dumps(ai_data.get("monthly_review_histogram", {})),
                 "ai_pros": "; ".join([f"{p['topic']} ({p['count']})" for p in pc.get('pros', [])]),
                 "ai_cons": "; ".join([f"{c['topic']} ({c['count']})" for c in pc.get('cons', [])]),
-                "last_scraped": datetime.now()
+                "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             PipelineLogger.log_event("STORAGE_ROW", row)
             self.processed_batch.append(row)
-        except Exception as e: ts_print(f"  ⚠️ Error: {e}")
+        except Exception as e: 
+            ts_print(f"  ⚠️ Error in atomic extraction: {e}")
 
     async def _get_dl(self, page, label):
         try: return (await page.locator(f"dt:has-text('{label}') + dd").first.inner_text()).strip()
@@ -281,25 +233,33 @@ class P4NScraper:
     async def start(self):
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            context = await browser.new_context(user_agent="Mozilla/5.0...")
             page = await context.new_page()
             await Stealth().apply_stealth_async(page)
-            await page.goto("https://park4night.com/en", wait_until="networkidle")
+            
+            # Start clean
+            await page.goto("https://park4night.com/en", wait_until="domcontentloaded")
             try: await page.click(".cc-btn-accept", timeout=3000)
             except: pass
             
             if not await self.login(page) and not self.is_dev:
-                ts_print("🛑 [CRITICAL] Login failed. Aborting run.")
+                ts_print("🛑 [CRITICAL] Login failed.")
                 await browser.close()
                 return
 
             target_urls, current_idx, total_idx = DailyQueueManager.get_next_partition()
             ts_print(f"📅 [PARTITION] Day {current_idx} of {total_idx}")
-            if target_urls: ts_print(f"🔗 [SEARCH LINK] Fetching from: {target_urls[0]}")
             
             discovery_links = []
             for url in target_urls:
-                await page.goto(url, wait_until="networkidle")
+                ts_print(f"🔗 [SEARCH LINK] Fetching from: {url}")
+                # Use domcontentloaded + wait_for_selector for discovery
+                await page.goto(url, wait_until="domcontentloaded")
+                try:
+                    await page.wait_for_selector("a[href*='/place/']", timeout=12000)
+                except:
+                    ts_print("⚠️ Map results taking too long to appear.")
+                
                 links = await page.locator("a[href*='/place/']").all()
                 for link in links:
                     href = await link.get_attribute("href")
@@ -311,9 +271,9 @@ class P4NScraper:
                 if self.is_dev and len(queue) >= DEV_LIMIT: break
                 p_id = link.split("/")[-1]
                 is_stale = True
-                if not self.force and not self.existing_df.empty and p_id in self.existing_df['p4n_id'].astype(str).values:
-                    last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == p_id]['last_scraped'].iloc[0]
-                    if pd.notnull(last_date) and (datetime.now() - last_date) < timedelta(days=STALENESS_DAYS):
+                if not self.force and not self.existing_df.empty and str(p_id) in self.existing_df['p4n_id'].astype(str).values:
+                    last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == str(p_id)]['last_scraped'].iloc[0]
+                    if pd.notnull(last_date) and (datetime.now() - pd.to_datetime(last_date)) < timedelta(days=STALENESS_DAYS):
                         is_stale = False
                 if is_stale or self.force: queue.append(link)
                 else: self.stats["discarded_fresh"] += 1
@@ -323,14 +283,13 @@ class P4NScraper:
             
             await browser.close()
             self._upsert_and_save()
-            ts_print(f"🏁 [RUN SUMMARY] | Scraped: {self.stats['read']} | Gemini Calls: {self.stats['gemini_calls']}")
+            ts_print(f"🏁 [RUN SUMMARY] Scraped: {self.stats['read']} | Gemini: {self.stats['gemini_calls']}")
             if not self.is_dev: DailyQueueManager.increment_state()
 
     def _upsert_and_save(self):
         if not self.processed_batch: return
         new_df = pd.DataFrame(self.processed_batch)
         final_df = pd.concat([new_df, self.existing_df], ignore_index=True)
-        final_df['last_scraped'] = pd.to_datetime(final_df['last_scraped'])
         final_df.sort_values('last_scraped', ascending=False).drop_duplicates('p4n_id').to_csv(self.csv_file, index=False)
 
 if __name__ == "__main__":
