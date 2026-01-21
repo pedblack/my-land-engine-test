@@ -83,7 +83,6 @@ class PipelineLogger:
         
         log_entry = {"timestamp": datetime.now().isoformat(), "type": event_type, "content": processed_content}
         
-        # Determine mode: 'w' (overwrite) for the first entry of the run, 'a' (append) thereafter
         mode = "a"
         if not PipelineLogger._initialized:
             mode = "w"
@@ -132,7 +131,6 @@ class P4NScraper:
             ts_print("⏳ [LOGIN] Submitting credentials...")
             await page.locator("#signinModal .modal-footer button[type='submit']").click()
             
-            # Wait for text update to verify login (much faster than networkidle)
             await page.wait_for_function(
                 f"""() => document.querySelector('.pageHeader-account-button span')?.innerText.toLowerCase().includes('{P4N_USER.lower()}')""",
                 timeout=12000
@@ -146,10 +144,29 @@ class P4NScraper:
     async def analyze_with_ai(self, raw_data):
         self.stats["gemini_calls"] += 1
         t_start = time.time()
-        system_instruction = (
-            "Analyze the provided property data and reviews. Return JSON ONLY. "
-            "If reviews < 5, return null for occupancy_analysis. Use snake_case."
-        )
+        
+        system_instruction = """
+Analyze the provided property data and reviews. Return JSON ONLY. Use snake_case.
+
+Schema:
+{
+  "num_places": int,
+  "parking_min": float,
+  "parking_max": float,
+  "electricity_eur": float,
+  "pros_cons": {
+    "pros": [ {"topic": "string", "count": int} ],
+    "cons": [ {"topic": "string", "count": int} ]
+  }
+}
+
+Instructions:
+1. num_places: Extract from the 'places_count' field.
+2. parking_min/parking_max: Extract the price range for parking. If only one price exists, set both to that value.
+3. electricity_eur: Extract the cost of electricity per day/unit. If included in price, set to 0.0.
+4. pros_cons: Extract common themes from reviews. List by recurrence frequency. Topics must be 3-5 words max.
+5. If any numeric data is missing, return null.
+"""
 
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
         config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1, system_instruction=system_instruction)
@@ -168,13 +185,10 @@ class P4NScraper:
         ts_print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
         self.stats["read"] += 1
         try:
-            # TIMER 1: Page Navigation (Target: < 10s)
             t_nav = time.time()
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_selector(".place-feedback-average", timeout=10000)
-            nav_elapsed = time.time() - t_nav
 
-            # TIMER 2: Data Extraction (Target: < 3s)
             t_dom = time.time()
             stats_container = page.locator(".place-feedback-average")
             raw_count_text = await stats_container.locator("strong").inner_text()
@@ -189,14 +203,20 @@ class P4NScraper:
             p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
             title = (await page.locator("h1").first.inner_text()).split('\n')[0].strip()
             
-            # Sliced extraction for speed
             review_articles = await page.locator(".place-feedback-article").all()
             formatted_reviews = []
+            review_seasonality = {}
+
             for article in review_articles[:15]:
                 try:
                     date_val = await article.locator("time").get_attribute("datetime") or "Unknown"
                     text_val = await article.locator(".place-feedback-article-content").inner_text()
                     formatted_reviews.append(f"[{date_val}]: {text_val.strip()}")
+                    
+                    # Traditional Crawler Part: Create review_seasonality field
+                    if "-" in date_val:
+                        month_key = date_val[:7] # Format YYYY-MM
+                        review_seasonality[month_key] = review_seasonality.get(month_key, 0) + 1
                 except: continue
 
             raw_payload = {
@@ -204,19 +224,19 @@ class P4NScraper:
                 "parking_cost": await self._get_dl(page, "Parking cost"),
                 "all_reviews": formatted_reviews 
             }
-            dom_elapsed = time.time() - t_dom
-            
-            ts_print(f"⏱️  Speed: Nav {nav_elapsed:.1f}s | DOM {dom_elapsed:.1f}s")
             
             ai_data = await self.analyze_with_ai(raw_payload)
-            occ = ai_data.get("occupancy_analysis") or {}
             pc = ai_data.get("pros_cons") or {}
 
             row = {
                 "p4n_id": p_id, "title": title, "url": url, 
-                "num_places": ai_data.get("num_places", 0),
+                "num_places": ai_data.get("num_places"),
+                "parking_min": ai_data.get("parking_min"),
+                "parking_max": ai_data.get("parking_max"),
+                "electricity_eur": ai_data.get("electricity_eur"),
                 "total_reviews": actual_feedback_count, 
                 "avg_rating": float(re.search(r'(\d+\.?\d*)', await stats_container.locator(".text-gray").inner_text()).group(1)),
+                "review_seasonality": json.dumps(review_seasonality),
                 "ai_pros": "; ".join([f"{p['topic']} ({p['count']})" for p in pc.get('pros', [])]),
                 "ai_cons": "; ".join([f"{c['topic']} ({c['count']})" for c in pc.get('cons', [])]),
                 "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -237,7 +257,6 @@ class P4NScraper:
             page = await context.new_page()
             await Stealth().apply_stealth_async(page)
             
-            # Start clean
             await page.goto("https://park4night.com/en", wait_until="domcontentloaded")
             try: await page.click(".cc-btn-accept", timeout=3000)
             except: pass
@@ -253,7 +272,6 @@ class P4NScraper:
             discovery_links = []
             for url in target_urls:
                 ts_print(f"🔗 [SEARCH LINK] Fetching from: {url}")
-                # Use domcontentloaded + wait_for_selector for discovery
                 await page.goto(url, wait_until="domcontentloaded")
                 try:
                     await page.wait_for_selector("a[href*='/place/']", timeout=12000)
