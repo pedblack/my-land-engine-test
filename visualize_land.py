@@ -32,18 +32,57 @@ def generate_map():
     prop_types = sorted(df_clean['location_type'].unique().tolist())
 
     for _, row in df_clean.iterrows():
+        # --- Helper: Data Cleaning & Formatting ---
         def clean_int(val):
             try:
                 if pd.isna(val) or val == "": return 0
                 return int(float(val))
             except: return 0
 
+        def format_cost(val):
+            if pd.isna(val) or val == "": return "N/A"
+            try:
+                num = float(val)
+                return "Free" if num == 0 else f"{num}€"
+            except: return "N/A"
+
         num_places = clean_int(row.get('num_places', 0))
+        p_min = format_cost(row.get('parking_min_eur'))
+        p_max = format_cost(row.get('parking_max_eur'))
+        elec = format_cost(row.get('electricity_eur'))
         
-        popup_html = f"""<div style="font-family: Arial; width: 300px;">
-            <h3>{row['title']}</h3>
-            <b>Places:</b> {num_places} | <b>Rating:</b> {row['avg_rating']}⭐
-            <br><a href="{row['url']}" target="_blank">View on Park4Night</a>
+        # Format Parking Display (Range vs Single Value)
+        parking_display = f"{p_min} - {p_max}" if p_min != p_max else p_min
+
+        # Parse Seasonality (JSON string to readable text)
+        seasonality_text = "No data"
+        try:
+            if pd.notna(row.get('review_seasonality')):
+                s_dict = json.loads(row['review_seasonality'])
+                # Show last 3 months found in data
+                seasonality_text = ", ".join([f"{k}: {v}" for k, v in sorted(s_dict.items())[-3:]])
+        except: pass
+        
+        # --- Popup HTML Construction ---
+        popup_html = f"""<div style="font-family: Arial; width: 320px; font-size: 13px;">
+            <h3 style="margin-bottom: 5px;">{row['title']}</h3>
+            <div style="color: #666; font-style: italic; margin-bottom: 10px;">{row['location_type']}</div>
+            
+            <b>Stats:</b> {num_places} places | <b>Rating:</b> {row['avg_rating']}⭐ ({row['total_reviews']} reviews)<br>
+            <b>Costs:</b> Parking: {parking_display} | <b>Elec:</b> {elec}<br>
+            <b>Languages:</b> {row.get('top_languages', 'N/A')}<br>
+            <b>Recent Seasonality:</b> {seasonality_text}
+            
+            <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <b style="color: green;">AI Pros:</b><br>
+                <span style="font-size: 11px;">{row.get('ai_pros', 'None listed')}</span>
+            </div>
+            <div style="margin-top: 5px;">
+                <b style="color: #d35400;">AI Cons:</b><br>
+                <span style="font-size: 11px;">{row.get('ai_cons', 'None listed')}</span>
+            </div>
+
+            <br><a href="{row['url']}" target="_blank" style="display: block; text-align: center; background: #2c3e50; color: white; padding: 8px; border-radius: 4px; text-decoration: none; font-weight: bold;">View on Park4Night</a>
         </div>"""
 
         marker = folium.Marker(
@@ -52,7 +91,7 @@ def generate_map():
             icon=folium.Icon(color='green' if row['avg_rating'] >= 4 else 'orange', icon='home', prefix='fa')
         )
         
-        # FIX: Changed {{ }} to { } for Python Dictionary assignment
+        # Store metadata for JS filtering
         marker.options['extraData'] = {
             'rating': float(row['avg_rating']),
             'places': num_places,
@@ -61,7 +100,6 @@ def generate_map():
         marker.add_to(marker_layer)
 
     # --- THE FILTER JAVASCRIPT ---
-    # We pass {layer_variable_name} directly into the script
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed; z-index: 9999; }}
@@ -105,7 +143,6 @@ def generate_map():
         const minP = parseInt(document.getElementById('range-places').value);
         const type = document.getElementById('sel-type').value;
 
-        // Access the layer directly using the variable name passed from Python
         var targetLayer = window['{layer_variable_name}'];
 
         if (!targetLayer) {{ 
