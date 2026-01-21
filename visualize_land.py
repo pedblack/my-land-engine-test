@@ -22,9 +22,12 @@ def generate_map():
     # Initialize Map
     m = folium.Map(location=[38.5, -7.9], zoom_start=9, tiles="cartodbpositron")
     
-    # FeatureGroup for unbundled markers
+    # FeatureGroup for markers
     marker_layer = folium.FeatureGroup(name="MainPropertyLayer")
     marker_layer.add_to(m)
+
+    # Get the internal Leaflet ID for this layer to use in JS
+    layer_variable_name = marker_layer.get_name()
 
     prop_types = sorted(df_clean['location_type'].unique().tolist())
 
@@ -49,16 +52,16 @@ def generate_map():
             icon=folium.Icon(color='green' if row['avg_rating'] >= 4 else 'orange', icon='home', prefix='fa')
         )
         
-        # Standardized metadata key for the JS engine
-        marker.options['extraData'] = {{
+        # FIX: Changed {{ }} to { } for Python Dictionary assignment
+        marker.options['extraData'] = {
             'rating': float(row['avg_rating']),
             'places': num_places,
             'type': str(row['location_type'])
-        }}
+        }
         marker.add_to(marker_layer)
 
     # --- THE FILTER JAVASCRIPT ---
-    # Every brace related to CSS/JS logic is now doubled {{ }}
+    # We pass {layer_variable_name} directly into the script
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed; z-index: 9999; }}
@@ -91,25 +94,9 @@ def generate_map():
 
     <script>
     var markerStore = null;
-    var targetLayer = null;
 
     function log(msg) {{
         document.getElementById('debug-log').innerText = "Status: " + msg;
-        console.log(msg);
-    }}
-
-    function findLayer() {{
-        for (let key in window) {{
-            try {{
-                if (window[key] instanceof L.LayerGroup || window[key] instanceof L.FeatureGroup) {{
-                    let layers = window[key].getLayers();
-                    if (layers.length > 0 && layers[0].options && layers[0].options.extraData) {{
-                        return window[key];
-                    }}
-                }}
-            }} catch(e) {{ continue; }}
-        }}
-        return null;
     }}
 
     function applyFilters() {{
@@ -118,9 +105,11 @@ def generate_map():
         const minP = parseInt(document.getElementById('range-places').value);
         const type = document.getElementById('sel-type').value;
 
-        if (!targetLayer) targetLayer = findLayer();
+        // Access the layer directly using the variable name passed from Python
+        var targetLayer = window['{layer_variable_name}'];
+
         if (!targetLayer) {{ 
-            log("Err: Layer not found"); 
+            log("Err: Layer {layer_variable_name} not found"); 
             return; 
         }}
 
@@ -156,7 +145,7 @@ def generate_map():
     """
     m.get_root().html.add_child(folium.Element(filter_html))
     m.save("index.html")
-    print(f"🚀 Map successfully generated for {{len(df_clean)}} locations.")
+    print(f"🚀 Map successfully generated for {len(df_clean)} locations.")
 
 if __name__ == "__main__":
     generate_map()
