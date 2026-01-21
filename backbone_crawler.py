@@ -35,6 +35,28 @@ def ts_print(msg):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {msg}")
 
+class PipelineLogger:
+    _initialized = False
+
+    @staticmethod
+    def log_event(event_type, data):
+        processed_content = {}
+        for k, v in data.items():
+            if isinstance(v, str) and (v.strip().startswith('{') or v.strip().startswith('[')):
+                try: processed_content[k] = json.loads(v)
+                except: processed_content[k] = v
+            else: processed_content[k] = v
+        
+        log_entry = {"timestamp": datetime.now().isoformat(), "type": event_type, "content": processed_content}
+        
+        # Mode 'w' ensures the log does not persist across runs
+        mode = "w" if not PipelineLogger._initialized else "a"
+        if not PipelineLogger._initialized: PipelineLogger._initialized = True
+
+        with open(LOG_FILE, mode, encoding="utf-8") as f:
+            header = f"\n{'='*30} {event_type} {'='*30}\n"
+            f.write(header + json.dumps(log_entry, indent=4, default=str, ensure_ascii=False) + "\n")
+
 class DailyQueueManager:
     @staticmethod
     def get_next_partition():
@@ -89,7 +111,10 @@ class P4NScraper:
 
     async def analyze_with_ai(self, raw_data):
         self.stats["gemini_calls"] += 1
-        system_instruction = """Analyze data. Return JSON ONLY. Schema: {num_places: int, parking_min: float, parking_max: float, electricity_eur: float, top_languages: [{lang: str, count: int}], pros_cons: {pros: [{topic: str, count: int}], cons: [{topic: str, count: int}]}}"""
+        PipelineLogger.log_event("SENT_TO_GEMINI", raw_data) # Log what gets sent
+        
+        system_instruction = """Analyze property data and reviews. Return JSON ONLY. Use snake_case.
+        Schema: {num_places: int, parking_min: float, parking_max: float, electricity_eur: float, top_languages: [{lang: str, count: int}], pros_cons: {pros: [], cons: []}}"""
         
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
         config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1, system_instruction=system_instruction)
@@ -97,8 +122,11 @@ class P4NScraper:
             await asyncio.sleep(AI_DELAY) 
             response = await client.aio.models.generate_content(model=MODEL_NAME, contents=f"ANALYZE:\n{json_payload}", config=config)
             clean_text = re.sub(r'```json\s*|\s*```', '', response.text).strip()
-            return json.loads(clean_text)
-        except:
+            ai_json = json.loads(clean_text)
+            PipelineLogger.log_event("GEMINI_ANSWER", ai_json) # Log what Gemini answers
+            return ai_json
+        except Exception as e:
+            PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e)})
             return {}
 
     async def extract_atomic(self, context, url, current_num, total_num):
@@ -111,8 +139,7 @@ class P4NScraper:
 
                 stats_container = page.locator(".place-feedback-average")
                 raw_count_text = await stats_container.locator("strong").inner_text()
-                count_match = re.search(r'(\d+)', raw_count_text)
-                actual_feedback_count = int(count_match.group(1)) if count_match else 0
+                actual_feedback_count = int(re.search(r'(\d+)', raw_count_text).group(1))
                 
                 if actual_feedback_count < MIN_REVIEWS_THRESHOLD:
                     self.stats["discarded_low_feedback"] += 1
@@ -129,27 +156,28 @@ class P4NScraper:
                     if m: lat, lng = float(m.group(1)), float(m.group(2))
 
                 review_articles = await page.locator(".place-feedback-article").all()
-                formatted_reviews = []
-                review_seasonality = {}
+                formatted_reviews, review_seasonality = [], {}
 
                 for article in review_articles[:15]:
                     try:
                         date_text = await article.locator("span.caption.text-gray").inner_text()
                         text_val = await article.locator(".place-feedback-article-content").inner_text()
-                        
                         date_parts = date_text.strip().split('/')
                         if len(date_parts) == 3:
                             month_key = f"{date_parts[2]}-{date_parts[1]}"
                             review_seasonality[month_key] = review_seasonality.get(month_key, 0) + 1
                             date_val = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
                         else: date_val = "Unknown"
-
                         formatted_reviews.append(f"[{date_val}]: {text_val.strip()}")
                     except: continue
 
-                ai_data = await self.analyze_with_ai({"places_count": await self._get_dl(page, "Number of places"), "parking_cost": await self._get_dl(page, "Parking cost"), "all_reviews": formatted_reviews})
+                raw_payload = {
+                    "places_count": await self._get_dl(page, "Number of places"),
+                    "parking_cost": await self._get_dl(page, "Parking cost"),
+                    "all_reviews": formatted_reviews 
+                }
                 
-                # BUG FIX: Defensive parsing for top_languages and pros_cons
+                ai_data = await self.analyze_with_ai(raw_payload)
                 top_langs = ai_data.get("top_languages", [])
                 pros_cons = ai_data.get("pros_cons") or {}
                 
@@ -168,10 +196,11 @@ class P4NScraper:
                     "ai_cons": "; ".join([f"{c.get('topic')} ({c.get('count')})" for c in pros_cons.get('cons', []) if isinstance(c, dict)]),
                     "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
+                PipelineLogger.log_event("STORED_ROW", row) # Log what we store
                 self.processed_batch.append(row)
                 self.stats["read"] += 1
             except Exception as e: 
-                ts_print(f"⚠️ Extraction error: {e}")
+                ts_print(f"⚠️ Error: {e}")
             finally:
                 await page.close()
 
