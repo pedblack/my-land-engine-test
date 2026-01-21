@@ -17,6 +17,7 @@ MODEL_NAME = "gemini-2.0-flash-lite"
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
+# Safe for Tier 1 (300 RPM): 3 simultaneous tasks + 1s delay
 CONCURRENCY_LIMIT = 3  
 
 AI_DELAY = 1.0
@@ -112,8 +113,7 @@ class P4NScraper:
         self.stats["gemini_calls"] += 1
         PipelineLogger.log_event("SENT_TO_GEMINI", raw_data)
         
-        system_instruction = """Analyze property data and reviews. Return JSON ONLY. Use snake_case.
-        Schema: {num_places: int, parking_min: float, parking_max: float, electricity_eur: float, top_languages: [{lang: str, count: int}], pros_cons: {pros: [], cons: []}}"""
+        system_instruction = """Analyze data. Return JSON ONLY. Schema: {num_places: int, parking_min: float, parking_max: float, electricity_eur: float, top_languages: [{lang: str, count: int}], pros_cons: {pros: [{topic: str, count: int}], cons: [{topic: str, count: int}]}}"""
         
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
         config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1, system_instruction=system_instruction)
@@ -130,7 +130,7 @@ class P4NScraper:
 
     async def extract_atomic(self, context, url, current_num, total_num):
         async with self.semaphore:
-            # Check if we already reached limit in dev mode during concurrent execution
+            # Check if limit reached in dev mode during concurrent execution
             if self.is_dev and self.stats["read"] >= DEV_LIMIT:
                 return
 
@@ -164,8 +164,10 @@ class P4NScraper:
 
                 for article in review_articles[:15]:
                     try:
+                        # Fixed Selector for Date
                         date_text = await article.locator("span.caption.text-gray").inner_text()
                         text_val = await article.locator(".place-feedback-article-content").inner_text()
+                        
                         date_parts = date_text.strip().split('/')
                         if len(date_parts) == 3:
                             month_key = f"{date_parts[2]}-{date_parts[1]}"
@@ -238,15 +240,11 @@ class P4NScraper:
 
             discovered = list(set(discovery_links))
             
-            # Processing loop adapted for live successful-count tracking
             if self.is_dev:
-                ts_print(f"🛠️  [DEV MODE] Seeking {DEV_LIMIT} successful processing run(s)...")
+                ts_print(f"🛠️  [DEV MODE] Seeking {DEV_LIMIT} successful run(s)...")
                 
             tasks = []
-            current_processed = 0
-            
-            for i, link in enumerate(discovered, 1):
-                # Pre-emptive check to see if we reached the successful run limit
+            for link in discovered:
                 if self.is_dev and self.stats["read"] >= DEV_LIMIT:
                     break
                     
@@ -258,15 +256,12 @@ class P4NScraper:
                         is_stale = False
                 
                 if is_stale or self.force:
-                    # Execute extraction. Note: In dev mode with concurrency, we may over-run slightly 
-                    # but Semaphore(3) keeps it controlled.
-                    tasks.append(self.extract_atomic(context, link, len(tasks) + 1, "Seeking..."))
-                    # Execute tasks in small batches if in dev mode to check successful count
+                    # In dev mode, we process sequentially until successful count reached
                     if self.is_dev:
-                        await asyncio.gather(*tasks)
-                        tasks = []
-                        if self.stats["read"] >= DEV_LIMIT:
-                            break
+                        await self.extract_atomic(context, link, self.stats["read"] + 1, "Seeking...")
+                        if self.stats["read"] >= DEV_LIMIT: break
+                    else:
+                        tasks.append(self.extract_atomic(context, link, len(tasks) + 1, len(discovered)))
                 else: 
                     ts_print(f"⏩  [SKIP] Listing already fresh: {link}")
                     self.stats["discarded_fresh"] += 1
