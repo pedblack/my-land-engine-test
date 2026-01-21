@@ -11,7 +11,6 @@ def generate_map():
         print(f"❌ {CSV_FILE} not found.")
         return
 
-    # Load and clean data
     df = pd.read_csv(CSV_FILE)
     df_clean = df[(df['latitude'] != 0) & (df['longitude'] != 0)].dropna(subset=['latitude', 'longitude'])
 
@@ -19,10 +18,10 @@ def generate_map():
         print("⚠️ No valid data found.")
         return
 
-    # Initialize Map
+    # Use a standard location to center the map
     m = folium.Map(location=[38.5, -7.9], zoom_start=9, tiles="cartodbpositron")
     
-    # FeatureGroup for markers
+    # FeatureGroup for unbundled markers
     marker_layer = folium.FeatureGroup(name="MainPropertyLayer")
     marker_layer.add_to(m)
 
@@ -49,8 +48,8 @@ def generate_map():
             icon=folium.Icon(color='green' if row['avg_rating'] >= 4 else 'orange', icon='home', prefix='fa')
         )
         
-        # Binding metadata for the JS engine
-        marker.options['extra_data'] = {
+        # STANDARD: Using extraData (camelCase) to match Folium's JS output
+        marker.options['extraData'] = {
             'rating': float(row['avg_rating']),
             'places': num_places,
             'type': str(row['location_type'])
@@ -58,7 +57,7 @@ def generate_map():
         marker.add_to(marker_layer)
 
     # --- THE FILTER JAVASCRIPT ---
-    # Note the double {{ }} used for CSS and JS logic
+    # Double curly braces {{ }} used to escape Python f-string logic
     filter_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed; z-index: 9999; }}
@@ -103,12 +102,13 @@ def generate_map():
             try {{
                 if (window[key] instanceof L.LayerGroup || window[key] instanceof L.FeatureGroup) {{
                     let layers = window[key].getLayers();
-                    if (layers.length > 0 && layers[0].options && layers[0].options.extra_data) {{
+                    // FIXED: Checking for extraData (camelCase)
+                    if (layers.length > 0 && layers[0].options && layers[0].options.extraData) {{
                         return window[key];
                     }}
                 }}
             }} catch(e) {{ continue; }}
-        }}
+        }
         return null;
     }}
 
@@ -132,7 +132,8 @@ def generate_map():
         targetLayer.clearLayers();
 
         const filtered = markerStore.filter(m => {{
-            const d = m.options.extra_data;
+            // FIXED: Using extraData
+            const d = m.options.extraData;
             if (!d) return false;
             return d.rating >= minR && 
                    d.places >= minP && 
@@ -156,7 +157,7 @@ def generate_map():
     """
     m.get_root().html.add_child(folium.Element(filter_html))
     m.save("index.html")
-    print(f"🚀 Map successfully generated for {len(df_clean)} locations.")
+    print(f"🚀 Map generated with Standardized CamelCase Keys.")
 
 if __name__ == "__main__":
     generate_map()
