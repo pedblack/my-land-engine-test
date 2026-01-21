@@ -32,11 +32,16 @@ GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 P4N_USER = os.environ.get("P4N_USERNAME") 
 P4N_PASS = os.environ.get("P4N_PASSWORD") 
 
+def ts_print(msg):
+    """Prints to console with a timestamp [YYYY-MM-DD HH:MM:SS]."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {msg}")
+
 class DailyQueueManager:
     @staticmethod
     def get_next_partition():
         if not os.path.exists(URL_LIST_FILE):
-            print(f"❌ ERROR: {URL_LIST_FILE} not found.")
+            ts_print(f"❌ ERROR: {URL_LIST_FILE} not found.")
             return [], 0, 0
         with open(URL_LIST_FILE, 'r') as f:
             urls = [line.strip() for line in f if line.strip()]
@@ -64,6 +69,8 @@ class DailyQueueManager:
         with open(STATE_FILE, 'w') as f: json.dump(state, f)
 
 class PipelineLogger:
+    _initialized = False
+
     @staticmethod
     def log_event(event_type, data):
         processed_content = {}
@@ -72,8 +79,16 @@ class PipelineLogger:
                 try: processed_content[k] = json.loads(v)
                 except: processed_content[k] = v
             else: processed_content[k] = v
+        
         log_entry = {"timestamp": datetime.now().isoformat(), "type": event_type, "content": processed_content}
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
+        
+        # Determine mode: 'w' (overwrite) for the first entry of the run, 'a' (append) thereafter
+        mode = "a"
+        if not PipelineLogger._initialized:
+            mode = "w"
+            PipelineLogger._initialized = True
+
+        with open(LOG_FILE, mode, encoding="utf-8") as f:
             header = f"\n{'='*30} {event_type} {'='*30}\n"
             f.write(header + json.dumps(log_entry, indent=4, default=str, ensure_ascii=False) + "\n")
 
@@ -99,10 +114,10 @@ class P4NScraper:
 
     async def login(self, page):
         if not P4N_USER or not P4N_PASS:
-            print("⚠️ [LOGIN] Missing credentials.")
+            ts_print("⚠️ [LOGIN] Missing credentials.")
             return False
 
-        print(f"🔐 [LOGIN] Attempting for user: {P4N_USER}...")
+        ts_print(f"🔐 [LOGIN] Attempting for user: {P4N_USER}...")
         try:
             await page.click(".pageHeader-account-button")
             await asyncio.sleep(1)
@@ -112,27 +127,33 @@ class P4NScraper:
             await page.locator("#signinUserId").fill(P4N_USER)
             await page.locator("#signinPassword").fill(P4N_PASS)
             
-            print("⏳ [LOGIN] Submitting credentials...")
+            ts_print("⏳ [LOGIN] Submitting credentials...")
             submit_selector = "#signinModal .modal-footer button[type='submit']:has-text('Login')"
             await page.locator(submit_selector).evaluate("el => el.click()")
             await page.keyboard.press("Enter")
             
+            # Wait for navigation/UI to settle
             await page.wait_for_load_state("networkidle")
-            await asyncio.sleep(10)
             
+            # Use reactive check for username instead of full 10s wait if possible
             try:
-                account_span = page.locator(".pageHeader-account-button span")
-                username_found = (await account_span.inner_text()).strip()
-                if P4N_USER.lower() in username_found.lower():
-                    print(f"✅ [LOGIN] Verified successfully: {username_found}")
-                    await page.screenshot(path=f"login_success_{int(datetime.now().timestamp())}.png", full_page=True)
-                    return True
-            except: pass
+                await page.wait_for_function(
+                    f"""() => document.querySelector('.pageHeader-account-button span')?.innerText.toLowerCase().includes('{P4N_USER.lower()}')""",
+                    timeout=10000
+                )
+            except:
+                await asyncio.sleep(5) # Fallback wait
+            
+            account_span = page.locator(".pageHeader-account-button span")
+            username_found = (await account_span.inner_text()).strip()
+            if P4N_USER.lower() in username_found.lower():
+                ts_print(f"✅ [LOGIN] Verified successfully: {username_found}")
+                return True
 
             await page.screenshot(path=f"login_failure_{int(datetime.now().timestamp())}.png")
             return False
         except Exception as e: 
-            print(f"❌ [LOGIN] Error: {e}")
+            ts_print(f"❌ [LOGIN] Error: {e}")
             return False
 
     async def analyze_with_ai(self, raw_data):
@@ -184,7 +205,7 @@ class P4NScraper:
             return {}
 
     async def extract_atomic(self, page, url, current_num, total_num):
-        print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
+        ts_print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
         self.stats["read"] += 1
         try:
             await page.goto(url, wait_until="domcontentloaded")
@@ -194,7 +215,7 @@ class P4NScraper:
             actual_feedback_count = int(count_match.group(1)) if count_match else 0
             
             if actual_feedback_count < MIN_REVIEWS_THRESHOLD:
-                print(f"🗑️  [DISCARD] Insufficient feedback.")
+                ts_print(f"🗑️  [DISCARD] Insufficient feedback.")
                 self.stats["discarded_low_feedback"] += 1
                 return
 
@@ -210,7 +231,6 @@ class P4NScraper:
                 m = re.search(r'lat=([-+]?\d*\.\d+|\d+)&lng=([-+]?\d*\.\d+|\d+)', coord_link)
                 if m: lat, lng = float(m.group(1)), float(m.group(2))
 
-            # --- STRUCTURED REVIEW DATA ---
             review_articles = await page.locator(".place-feedback-article").all()
             formatted_reviews = []
             for article in review_articles:
@@ -252,7 +272,7 @@ class P4NScraper:
             }
             PipelineLogger.log_event("STORAGE_ROW", row)
             self.processed_batch.append(row)
-        except Exception as e: print(f"  ⚠️ Error: {e}")
+        except Exception as e: ts_print(f"  ⚠️ Error: {e}")
 
     async def _get_dl(self, page, label):
         try: return (await page.locator(f"dt:has-text('{label}') + dd").first.inner_text()).strip()
@@ -269,13 +289,13 @@ class P4NScraper:
             except: pass
             
             if not await self.login(page) and not self.is_dev:
-                print("🛑 [CRITICAL] Login failed. Aborting run.")
+                ts_print("🛑 [CRITICAL] Login failed. Aborting run.")
                 await browser.close()
                 return
 
             target_urls, current_idx, total_idx = DailyQueueManager.get_next_partition()
-            print(f"\n📅 [PARTITION] Day {current_idx} of {total_idx}")
-            if target_urls: print(f"🔗 [SEARCH LINK] Fetching from: {target_urls[0]}\n")
+            ts_print(f"📅 [PARTITION] Day {current_idx} of {total_idx}")
+            if target_urls: ts_print(f"🔗 [SEARCH LINK] Fetching from: {target_urls[0]}")
             
             discovery_links = []
             for url in target_urls:
@@ -303,7 +323,7 @@ class P4NScraper:
             
             await browser.close()
             self._upsert_and_save()
-            print(f"\n🏁 [RUN SUMMARY]\n🔹 Scraped: {self.stats['read']}\n🤖 Gemini Calls: {self.stats['gemini_calls']}")
+            ts_print(f"🏁 [RUN SUMMARY] | Scraped: {self.stats['read']} | Gemini Calls: {self.stats['gemini_calls']}")
             if not self.is_dev: DailyQueueManager.increment_state()
 
     def _upsert_and_save(self):
