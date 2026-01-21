@@ -40,7 +40,6 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-          # Ensure scikit-learn is installed for the analyzer
           pip install scikit-learn 
           playwright install chromium --with-deps
 
@@ -56,17 +55,22 @@ jobs:
           if [[ "${{ github.event.inputs.force_recrawl }}" == "true" ]]; then ARGS="$ARGS --force"; fi
           python backbone_crawler.py $ARGS
 
-      - name: Run Demand Analyzer
-        # The analyzer transforms raw data into strategic intelligence
-        # FIRE Metric: Targets 90+ Opportunity Score clusters
+      - name: Set Intelligence Environment
+        # BUG FIX: Persists the correct file names for both following steps
         run: |
-          if [ -f "backbone_locations_dev.csv" ]; then export INPUT_CSV="backbone_locations_dev.csv"; fi
-          python demand_analyzer.py
+          if [ -f "backbone_locations_dev.csv" ]; then
+            echo "INPUT_CSV=backbone_locations_dev.csv" >> $GITHUB_ENV
+            echo "CSV_FILE=backbone_locations_dev.csv" >> $GITHUB_ENV
+          else
+            echo "INPUT_CSV=backbone_locations.csv" >> $GITHUB_ENV
+            echo "CSV_FILE=backbone_locations.csv" >> $GITHUB_ENV
+          fi
+
+      - name: Run Demand Analyzer
+        run: python demand_analyzer.py
 
       - name: Generate Visualization
-        run: |
-          if [ -f "backbone_locations_dev.csv" ]; then export CSV_FILE="backbone_locations_dev.csv"; fi
-          python visualize_land.py
+        run: python visualize_land.py
 
       - name: Upload Pipeline Artifacts
         if: always()
@@ -76,13 +80,13 @@ jobs:
           path: |
             pipeline_execution.log
             strategic_analysis.json
-            *.png
+            *.csv
+            index.html
 
       - name: Commit and Push (Prod Only)
         if: github.event.inputs.mode != 'dev'
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
-          # Track the strategic JSON to monitor check-in frequency over time
-          git add backbone_locations.csv index.html queue_state.json pipeline_execution.log strategic_analysis.json
+          git add backbone_locations.csv index.html queue_state.json strategic_analysis.json
           git diff --staged --quiet || (git commit -m "Auto-update strategic intelligence [skip ci]" && git push)
