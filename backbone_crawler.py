@@ -22,7 +22,7 @@ CONCURRENCY_LIMIT = 3
 AI_DELAY = 1.0
 STALENESS_DAYS = 30
 MIN_REVIEWS_THRESHOLD = 5
-DEV_LIMIT = 2
+DEV_LIMIT = 1 
 
 URL_LIST_FILE = "url_list.txt"   
 STATE_FILE = "queue_state.json"  
@@ -49,7 +49,6 @@ class PipelineLogger:
         
         log_entry = {"timestamp": datetime.now().isoformat(), "type": event_type, "content": processed_content}
         
-        # Mode 'w' ensures the log does not persist across runs
         mode = "w" if not PipelineLogger._initialized else "a"
         if not PipelineLogger._initialized: PipelineLogger._initialized = True
 
@@ -111,7 +110,7 @@ class P4NScraper:
 
     async def analyze_with_ai(self, raw_data):
         self.stats["gemini_calls"] += 1
-        PipelineLogger.log_event("SENT_TO_GEMINI", raw_data) # Log what gets sent
+        PipelineLogger.log_event("SENT_TO_GEMINI", raw_data)
         
         system_instruction = """Analyze property data and reviews. Return JSON ONLY. Use snake_case.
         Schema: {num_places: int, parking_min: float, parking_max: float, electricity_eur: float, top_languages: [{lang: str, count: int}], pros_cons: {pros: [], cons: []}}"""
@@ -123,7 +122,7 @@ class P4NScraper:
             response = await client.aio.models.generate_content(model=MODEL_NAME, contents=f"ANALYZE:\n{json_payload}", config=config)
             clean_text = re.sub(r'```json\s*|\s*```', '', response.text).strip()
             ai_json = json.loads(clean_text)
-            PipelineLogger.log_event("GEMINI_ANSWER", ai_json) # Log what Gemini answers
+            PipelineLogger.log_event("GEMINI_ANSWER", ai_json)
             return ai_json
         except Exception as e:
             PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e)})
@@ -131,6 +130,10 @@ class P4NScraper:
 
     async def extract_atomic(self, context, url, current_num, total_num):
         async with self.semaphore:
+            # Check if we already reached limit in dev mode during concurrent execution
+            if self.is_dev and self.stats["read"] >= DEV_LIMIT:
+                return
+
             ts_print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
             page = await context.new_page()
             try:
@@ -142,6 +145,7 @@ class P4NScraper:
                 actual_feedback_count = int(re.search(r'(\d+)', raw_count_text).group(1))
                 
                 if actual_feedback_count < MIN_REVIEWS_THRESHOLD:
+                    ts_print(f"🗑️  [DISCARD] Low feedback ({actual_feedback_count} reviews) for: {url}")
                     self.stats["discarded_low_feedback"] += 1
                     return
 
@@ -196,7 +200,7 @@ class P4NScraper:
                     "ai_cons": "; ".join([f"{c.get('topic')} ({c.get('count')})" for c in pros_cons.get('cons', []) if isinstance(c, dict)]),
                     "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
-                PipelineLogger.log_event("STORED_ROW", row) # Log what we store
+                PipelineLogger.log_event("STORED_ROW", row)
                 self.processed_batch.append(row)
                 self.stats["read"] += 1
             except Exception as e: 
@@ -220,6 +224,8 @@ class P4NScraper:
             await Stealth().apply_stealth_async(page)
             
             target_urls, current_idx, total_idx = DailyQueueManager.get_next_partition()
+            ts_print(f"📅 [PARTITION] Day {current_idx} of {total_idx}")
+            
             discovery_links = []
             for url in target_urls:
                 await page.goto(url, wait_until="domcontentloaded")
@@ -230,23 +236,55 @@ class P4NScraper:
                     href = await link.get_attribute("href")
                     if href: discovery_links.append(f"https://park4night.com{href}" if href.startswith("/") else href)
 
-            queue = []
-            for link in list(set(discovery_links)):
+            discovered = list(set(discovery_links))
+            
+            # Processing loop adapted for live successful-count tracking
+            if self.is_dev:
+                ts_print(f"🛠️  [DEV MODE] Seeking {DEV_LIMIT} successful processing run(s)...")
+                
+            tasks = []
+            current_processed = 0
+            
+            for i, link in enumerate(discovered, 1):
+                # Pre-emptive check to see if we reached the successful run limit
+                if self.is_dev and self.stats["read"] >= DEV_LIMIT:
+                    break
+                    
                 p_id = link.split("/")[-1]
                 is_stale = True
                 if not self.force and not self.existing_df.empty and str(p_id) in self.existing_df['p4n_id'].astype(str).values:
                     last_date = self.existing_df[self.existing_df['p4n_id'].astype(str) == str(p_id)]['last_scraped'].iloc[0]
                     if pd.notnull(last_date) and (datetime.now() - pd.to_datetime(last_date)) < timedelta(days=STALENESS_DAYS):
                         is_stale = False
+                
                 if is_stale or self.force:
-                    if self.is_dev and len(queue) >= DEV_LIMIT: break
-                    queue.append(link)
-                else: self.stats["discarded_fresh"] += 1
+                    # Execute extraction. Note: In dev mode with concurrency, we may over-run slightly 
+                    # but Semaphore(3) keeps it controlled.
+                    tasks.append(self.extract_atomic(context, link, len(tasks) + 1, "Seeking..."))
+                    # Execute tasks in small batches if in dev mode to check successful count
+                    if self.is_dev:
+                        await asyncio.gather(*tasks)
+                        tasks = []
+                        if self.stats["read"] >= DEV_LIMIT:
+                            break
+                else: 
+                    ts_print(f"⏩  [SKIP] Listing already fresh: {link}")
+                    self.stats["discarded_fresh"] += 1
 
-            tasks = [self.extract_atomic(context, link, i, len(queue)) for i, link in enumerate(queue, 1)]
-            await asyncio.gather(*tasks)
+            if tasks:
+                await asyncio.gather(*tasks)
+                
             await browser.close()
             self._upsert_and_save()
+            
+            ts_print("="*40)
+            ts_print("🏁 [RUN SUMMARY]")
+            ts_print(f"✅ Items Successfully Processed: {self.stats['read']}")
+            ts_print(f"⏩ Items Discarded (Fresh): {self.stats['discarded_fresh']}")
+            ts_print(f"🗑️  Items Discarded (Low Feedback): {self.stats['discarded_low_feedback']}")
+            ts_print(f"🤖 Total Gemini AI Calls: {self.stats['gemini_calls']}")
+            ts_print("="*40)
+
             if not self.is_dev: DailyQueueManager.increment_state()
 
     def _upsert_and_save(self):
