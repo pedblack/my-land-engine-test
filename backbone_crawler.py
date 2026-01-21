@@ -13,7 +13,7 @@ from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
-MODEL_NAME = "gemini-2.5-flash-lite" 
+MODEL_NAME = "gemini-2.0-flash-lite" 
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
@@ -154,6 +154,7 @@ Schema:
   "parking_min": float,
   "parking_max": float,
   "electricity_eur": float,
+  "top_languages": [ {"lang": "string", "count": int} ],
   "pros_cons": {
     "pros": [ {"topic": "string", "count": int} ],
     "cons": [ {"topic": "string", "count": int} ]
@@ -162,10 +163,11 @@ Schema:
 
 Instructions:
 1. num_places: Extract from the 'places_count' field.
-2. parking_min/parking_max: Extract the price range for parking. If only one price exists, set both to that value.
-3. electricity_eur: Extract the cost of electricity per day/unit. If included in price, set to 0.0.
-4. pros_cons: Extract common themes from reviews. List by recurrence frequency. Topics must be 3-5 words max.
-5. If any numeric data is missing, return null.
+2. parking_min/parking_max: Extract the price range. If only one price exists, set both to that value.
+3. electricity_eur: Extract the cost. If included in price, set to 0.0.
+4. top_languages: Identify the languages used in the reviews and provide a frequency count for each.
+5. pros_cons: Extract themes from reviews. List by recurrence frequency. Topics must be 3-5 words max.
+6. Use null for any missing numeric data.
 """
 
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
@@ -185,11 +187,9 @@ Instructions:
         ts_print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
         self.stats["read"] += 1
         try:
-            t_nav = time.time()
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_selector(".place-feedback-average", timeout=10000)
 
-            t_dom = time.time()
             stats_container = page.locator(".place-feedback-average")
             raw_count_text = await stats_container.locator("strong").inner_text()
             count_match = re.search(r'(\d+)', raw_count_text)
@@ -202,6 +202,21 @@ Instructions:
 
             p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
             title = (await page.locator("h1").first.inner_text()).split('\n')[0].strip()
+
+            # --- COORDINATE AND PROPERTY TYPE LOGIC ---
+            location_type = "Unknown"
+            try: 
+                location_type = await page.locator(".place-header-access img").get_attribute("title")
+            except: 
+                pass
+            
+            lat, lng = 0.0, 0.0
+            coord_link_el = page.locator("a[href*='lat='][href*='lng=']").first
+            coord_link = await coord_link_el.get_attribute("href") if await coord_link_el.count() > 0 else None
+            if coord_link:
+                m = re.search(r'lat=([-+]?\d*\.\d+|\d+)&lng=([-+]?\d*\.\d+|\d+)', coord_link)
+                if m: 
+                    lat, lng = float(m.group(1)), float(m.group(2))
             
             review_articles = await page.locator(".place-feedback-article").all()
             formatted_reviews = []
@@ -213,9 +228,8 @@ Instructions:
                     text_val = await article.locator(".place-feedback-article-content").inner_text()
                     formatted_reviews.append(f"[{date_val}]: {text_val.strip()}")
                     
-                    # Traditional Crawler Part: Create review_seasonality field
                     if "-" in date_val:
-                        month_key = date_val[:7] # Format YYYY-MM
+                        month_key = date_val[:7] 
                         review_seasonality[month_key] = review_seasonality.get(month_key, 0) + 1
                 except: continue
 
@@ -227,16 +241,23 @@ Instructions:
             
             ai_data = await self.analyze_with_ai(raw_payload)
             pc = ai_data.get("pros_cons") or {}
+            langs = ai_data.get("top_languages", [])
 
             row = {
-                "p4n_id": p_id, "title": title, "url": url, 
+                "p4n_id": p_id, 
+                "title": title, 
+                "url": url, 
+                "latitude": lat,
+                "longitude": lng,
+                "location_type": location_type,
                 "num_places": ai_data.get("num_places"),
-                "parking_min": ai_data.get("parking_min"),
-                "parking_max": ai_data.get("parking_max"),
-                "electricity_eur": ai_data.get("electricity_eur"),
                 "total_reviews": actual_feedback_count, 
                 "avg_rating": float(re.search(r'(\d+\.?\d*)', await stats_container.locator(".text-gray").inner_text()).group(1)),
+                "parking_min_eur": ai_data.get("parking_min"),
+                "parking_max_eur": ai_data.get("parking_max"),
+                "electricity_eur": ai_data.get("electricity_eur"),
                 "review_seasonality": json.dumps(review_seasonality),
+                "top_languages": "; ".join([f"{l['lang']} ({l['count']})" for l in langs]),
                 "ai_pros": "; ".join([f"{p['topic']} ({p['count']})" for p in pc.get('pros', [])]),
                 "ai_cons": "; ".join([f"{c['topic']} ({c['count']})" for c in pc.get('cons', [])]),
                 "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
