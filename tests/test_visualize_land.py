@@ -24,12 +24,15 @@ def setup_teardown_driver(tmp_path_factory):
         os.path.dirname(__file__), "strategic_analysis.json"
     )
 
-    # Setup WebDriver
+    # Setup WebDriver using ChromeDriverManager
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(options=options)
+    
+    # Use Service and ChromeDriverManager to avoid PATH issues in CI
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
 
     # Generate the map
     output_dir = tmp_path_factory.mktemp("html_output")
