@@ -92,18 +92,20 @@ jobs:
             index.html
 
       - name: Commit and Push (Prod Only)
-        # Run if it's a scheduled run OR if the manual input mode is NOT 'dev'
         if: github.event_name == 'schedule' || github.event.inputs.mode == 'prod'
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
-          git add backbone_locations.csv index.html queue_state.json strategic_analysis.json
+          
+          # Force a small change to verify the push logic is working
+          date > last_run.txt
+          
+          git add backbone_locations.csv index.html queue_state.json strategic_analysis.json last_run.txt
           
           if ! git diff --staged --quiet; then
             git commit -m "Auto-update strategic intelligence [skip ci]"
-            # Rebase is essential to fix the "rejected" error you saw earlier
             git pull --rebase origin main
             git push origin main
           else
-            echo "No changes detected. Skipping push."
+            echo "No changes detected."
           fi
