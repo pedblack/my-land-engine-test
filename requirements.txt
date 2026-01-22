@@ -1,6 +1,8 @@
 firecrawl-py (>=1.0.0)
 folium
 google-genai
+numpy
+opencv-python-headless
 pandas
 playwright
 playwright-stealth
