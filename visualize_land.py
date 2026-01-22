@@ -13,7 +13,7 @@ def generate_map():
         print(f"❌ {CSV_FILE} not found.")
         return
 
-    # 1. Load Strategic Intelligence (Universal Score Map)
+    # 1. Load Strategic Intelligence
     score_map = {}
     recommendation = None
     if os.path.exists(STRATEGIC_FILE):
@@ -27,7 +27,6 @@ def generate_map():
 
     # 2. Load and clean data
     df = pd.read_csv(CSV_FILE)
-    
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce').fillna(0)
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce').fillna(0)
     df['avg_rating'] = pd.to_numeric(df['avg_rating'], errors='coerce').fillna(0)
@@ -114,7 +113,7 @@ def generate_map():
             icon=folium.Icon(color=marker_color, icon=icon_type, prefix='fa')
         )
         
-        marker.options['extraData'] = {
+        marker.options['extraData'] = {{
             'rating': float(row['avg_rating']),
             'places': int(num_places),
             'reviews': int(row['total_reviews']),
@@ -122,7 +121,7 @@ def generate_map():
             'seasonality': row['review_seasonality'] if pd.notna(row['review_seasonality']) else "{}",
             'pros': row['ai_pros'] if pd.notna(row['ai_pros']) else "",
             'cons': row['ai_cons'] if pd.notna(row['ai_cons']) else ""
-        }
+        }}
         marker.add_to(marker_layer)
 
     strat_box = f"""
@@ -144,7 +143,6 @@ def generate_map():
         #stats-panel {{ top: 20px; left: 20px; width: 320px; max-height: 70vh; }}
         .stat-section {{ margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; font-size: 11px; }}
         .tag-item {{ display: flex; justify-content: space-between; margin-bottom: 2px; }}
-        /* Dual Slider Styling */
         .slider-wrap {{ margin: 10px 10px 25px 10px; }}
         .noUi-connect {{ background: #2c3e50; }}
         .noUi-handle {{ width: 18px !important; height: 18px !important; right: -9px !important; top: -5px !important; border-radius: 50%; cursor: pointer; }}
@@ -251,7 +249,6 @@ def generate_map():
         document.getElementById('total-places-count').innerText = totalPlaces.toLocaleString();
         document.getElementById('avg-rating-count').innerText = activeMarkers.length ? (totalRating / activeMarkers.length).toFixed(2) : 0;
 
-        // Chart
         const labels = ["01","02","03","04","05","06","07","08","09","10","11","12"];
         const ctx = document.getElementById('seasonChart').getContext('2d');
         if (chartInstance) chartInstance.destroy();
@@ -261,7 +258,6 @@ def generate_map():
             options: {{ plugins: {{ legend: {{ display: false }} }}, scales: {{ y: {{ beginAtZero: true }} }} }}
         }});
 
-        // Pros/Cons
         const renderList = (data, id) => {{
             const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0, 8);
             document.getElementById(id).innerHTML = sorted.map(i => `<div class="tag-item"><span>${{i[0]}}</span><b>${{i[1]}}</b></div>`).join('');
@@ -271,11 +267,13 @@ def generate_map():
     }}
 
     function applyFilters() {{
+        // Extract handle values from noUiSlider objects
         const [minR, maxR] = sRating.noUiSlider.get().map(parseFloat);
         const [minP, maxP] = sPlaces.noUiSlider.get().map(parseInt);
         const selTypes = Array.from(document.getElementById('sel-type').selectedOptions).map(o => o.value);
 
         var targetLayer = window['{layer_var}'];
+        // Ensure we capture original markers before first clear
         if (!markerStore) markerStore = targetLayer.getLayers();
 
         targetLayer.clearLayers();
@@ -300,13 +298,16 @@ def generate_map():
     
     window.onload = () => {{
         initSliders();
-        setTimeout(() => {{ updateDashboard(window['{layer_var}'].getLayers()); }}, 1000);
+        // Delay update to ensure Folium layers are registered
+        setTimeout(() => {{
+            var layer = window['{layer_var}'];
+            if (layer) updateDashboard(layer.getLayers());
+        }}, 1000);
     }};
     </script>
     """
     m.get_root().html.add_child(folium.Element(ui_html))
     m.save("index.html")
-    print("🚀 Map updated: Dual sliders merged, Multi-select active, Dashboard restored.")
 
 if __name__ == "__main__":
     generate_map()
