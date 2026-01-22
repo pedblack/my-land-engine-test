@@ -142,6 +142,7 @@ class P4NScraper:
             "discarded_low_feedback": 0,
             "gemini_flash_calls": 0,
             "gemini_lite_calls": 0,
+            "gemini_errors": 0,
         }
         self.semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 
@@ -213,6 +214,7 @@ class P4NScraper:
             PipelineLogger.log_event(
                 "GEMINI_ERROR", {"error": str(e), "model": model_name}
             )
+            self.stats["gemini_errors"] += 1
             return {}
 
     async def extract_atomic(self, context, url, current_num, total_num):
@@ -511,6 +513,7 @@ class P4NScraper:
             ts_print(
                 f"🤖 Total Gemini Flash-Lite Calls: {self.stats.get('gemini_lite_calls', 0)}"
             )
+            ts_print(f"❌ Total Gemini Errors: {self.stats.get('gemini_errors', 0)}")
             ts_print("=" * 40)
 
             if not self.is_dev and not self.single_url:
