@@ -8,4 +8,5 @@ pydantic
 python-dotenv
 pytest
 selenium
+sklearn
 webdriver-manager
