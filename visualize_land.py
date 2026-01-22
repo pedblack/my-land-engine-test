@@ -75,7 +75,6 @@ def generate_map():
         elec = format_cost(row.get('electricity_eur'))
         parking_display = f"{p_min} - {p_max}" if p_min != p_max else p_min
 
-        # Parse Seasonality for Winter Stability
         seasonality_text = "No data"
         stability_ratio = 0.0
         try:
@@ -124,7 +123,6 @@ def generate_map():
             icon=folium.Icon(color=marker_color, icon=icon_type, prefix='fa')
         )
         
-        # EMBED DATA FOR JAVASCRIPT: Added total_reviews for the new filter
         marker.options['extraData'] = {
             'rating': float(row['avg_rating']),
             'places': int(num_places),
@@ -137,7 +135,6 @@ def generate_map():
         }
         marker.add_to(marker_layer)
 
-    # 4. UI AND INTERACTIVE LOGIC
     strat_box = f"""
     <div id="strat-panel" class="map-overlay" style="bottom: 20px; left: 20px; width: 280px; border-left: 5px solid #f1c40f;">
         <h4 style="margin:0; color: #2c3e50;">🔥 FIRE Investment Memo</h4>
@@ -167,7 +164,8 @@ def generate_map():
     <div id="stats-panel" class="map-overlay">
         <h4 style="margin:0;">📊 Market Intelligence</h4>
         <p style="font-size: 11px; color: #666; margin-bottom: 4px;">Aggregating <span id="agg-count">{len(df_clean)}</span> visible sites</p>
-        <p style="font-size: 11px; color: #2c3e50; margin-top: 0;"><b>Total Reviews (Since 2024):</b> <span id="recent-review-count">0</span></p>
+        <p style="font-size: 11px; color: #2c3e50; margin: 0;"><b>Total Places:</b> <span id="total-places-count">0</span></p>
+        <p style="font-size: 11px; color: #2c3e50; margin: 0;"><b>Reviews (Since 2024):</b> <span id="recent-review-count">0</span></p>
         
         <div class="stat-section">
             <b>Review Seasonality (Total)</b>
@@ -235,9 +233,14 @@ def generate_map():
         let globalPros = {{}};
         let globalCons = {{}};
         let totalRecentReviews = 0;
+        let totalPlaces = 0;
 
         activeMarkers.forEach(m => {{
             const d = m.options.extraData;
+            
+            // Sum places for visible sites
+            totalPlaces += (d.places || 0);
+
             try {{
                 const s = JSON.parse(d.seasonality);
                 for (let date in s) {{
@@ -252,9 +255,12 @@ def generate_map():
             for (let k in c) {{ globalCons[k] = (globalCons[k] || 0) + c[k]; }}
         }});
 
+        // Update Text Stats
+        document.getElementById('total-places-count').innerText = totalPlaces.toLocaleString();
         document.getElementById('recent-review-count').innerText = totalRecentReviews.toLocaleString();
         document.getElementById('agg-count').innerText = activeMarkers.length;
 
+        // Render Histogram
         const labels = ["01","02","03","04","05","06","07","08","09","10","11","12"];
         const ctx = document.getElementById('seasonChart').getContext('2d');
         if (chartInstance) chartInstance.destroy();
@@ -267,6 +273,7 @@ def generate_map():
             options: {{ plugins: {{ legend: {{ display: false }} }}, scales: {{ y: {{ beginAtZero: true }} }} }}
         }});
 
+        // Render Top 10 Lists
         const renderTop10 = (data, divId) => {{
             const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0, 10);
             document.getElementById(divId).innerHTML = sorted.map(i => 
@@ -324,7 +331,7 @@ def generate_map():
     """
     m.get_root().html.add_child(folium.Element(ui_html))
     m.save("index.html")
-    print(f"🚀 Map generated with Recent Reviews and Max Review/Places filters.")
+    print(f"🚀 Map updated with dynamic 'Total Places' aggregation.")
 
 if __name__ == "__main__":
     generate_map()
