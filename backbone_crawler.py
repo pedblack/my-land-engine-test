@@ -14,7 +14,8 @@ from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
-MODEL_NAME = "gemini-2.5-flash-lite"
+FLASH_MODEL = "gemini-2.5-flash"
+LITE_MODEL = "gemini-2.5-flash-lite"
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
@@ -138,7 +139,8 @@ class P4NScraper:
             "read": 0,
             "discarded_fresh": 0,
             "discarded_low_feedback": 0,
-            "gemini_calls": 0,
+            "gemini_flash_calls": 0,
+            "gemini_lite_calls": 0,
         }
         self.semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
 
@@ -152,9 +154,15 @@ class P4NScraper:
                 pass
         return pd.DataFrame()
 
-    async def analyze_with_ai(self, raw_data):
-        self.stats["gemini_calls"] += 1
-        PipelineLogger.log_event("SENT_TO_GEMINI", raw_data)
+    async def analyze_with_ai(self, raw_data, model_name):
+        if model_name == FLASH_MODEL:
+            self.stats["gemini_flash_calls"] += 1
+        else:
+            self.stats["gemini_lite_calls"] += 1
+
+        PipelineLogger.log_event(
+            "SENT_TO_GEMINI", {"payload": raw_data, "model": model_name}
+        )
 
         # ENHANCED STRATEGIC PROMPT
         system_instruction = """Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
@@ -192,14 +200,18 @@ class P4NScraper:
         try:
             await asyncio.sleep(AI_DELAY)
             response = await client.aio.models.generate_content(
-                model=MODEL_NAME, contents=f"ANALYZE:\n{json_payload}", config=config
+                model=model_name, contents=f"ANALYZE:\n{json_payload}", config=config
             )
             clean_text = re.sub(r"```json\s*|\s*```", "", response.text).strip()
             ai_json = json.loads(clean_text)
-            PipelineLogger.log_event("GEMINI_ANSWER", ai_json)
+            PipelineLogger.log_event(
+                "GEMINI_ANSWER", {"model": model_name, "response": ai_json}
+            )
             return ai_json
         except Exception as e:
-            PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e)})
+            PipelineLogger.log_event(
+                "GEMINI_ERROR", {"error": str(e), "model": model_name}
+            )
             return {}
 
     async def extract_atomic(self, context, url, current_num, total_num):
@@ -303,7 +315,14 @@ class P4NScraper:
                     "all_reviews": formatted_reviews,
                 }
 
-                ai_data = await self.analyze_with_ai(raw_payload)
+                # Dynamic Gemini model selection based on number of filtered reviews
+                review_count = len(formatted_reviews)
+                if review_count > 100:
+                    selected_model = FLASH_MODEL
+                else:
+                    selected_model = LITE_MODEL
+
+                ai_data = await self.analyze_with_ai(raw_payload, selected_model)
                 top_langs = ai_data.get("top_languages", [])
                 pros_cons = ai_data.get("pros_cons") or {}
 
@@ -485,7 +504,12 @@ class P4NScraper:
             ts_print(
                 f"🗑️  Items Discarded (Low Feedback): {self.stats['discarded_low_feedback']}"
             )
-            ts_print(f"🤖 Total Gemini AI Calls: {self.stats['gemini_calls']}")
+            ts_print(
+                f"🤖 Total Gemini Flash Calls: {self.stats.get('gemini_flash_calls', 0)}"
+            )
+            ts_print(
+                f"🤖 Total Gemini Flash-Lite Calls: {self.stats.get('gemini_lite_calls', 0)}"
+            )
             ts_print("=" * 40)
 
             if not self.is_dev and not self.single_url:
@@ -501,17 +525,24 @@ class P4NScraper:
         try:
             new_df = pd.DataFrame(self.processed_batch)
 
-            # Ensure p4n_id is consistently a string in both new and existing
+            # Normalize and clean p4n_id in new data
             if "p4n_id" in new_df.columns:
-                new_df["p4n_id"] = new_df["p4n_id"].astype(str)
+                new_df["p4n_id"] = (
+                    new_df["p4n_id"].astype(str).str.strip().replace("nan", "")
+                )
+            else:
+                new_df["p4n_id"] = ""
 
-            # Normalize last_scraped to datetime to avoid mixed dtypes
+            # Normalize last_scraped to datetime for new data
             if "last_scraped" in new_df.columns:
                 new_df["last_scraped"] = pd.to_datetime(
                     new_df["last_scraped"], errors="coerce"
                 )
             else:
                 new_df["last_scraped"] = pd.NaT
+
+            # Drop rows with empty p4n_id to avoid creating meaningless duplicates
+            new_df = new_df[new_df["p4n_id"].astype(bool)].copy()
 
             existing = (
                 self.existing_df.copy()
@@ -520,28 +551,49 @@ class P4NScraper:
             )
 
             if not existing.empty:
-                # Coerce existing p4n_id to string so dedupe works across types
+                # Coerce and clean existing p4n_id to string so dedupe works across types
                 if "p4n_id" in existing.columns:
-                    existing["p4n_id"] = existing["p4n_id"].astype(str)
+                    existing["p4n_id"] = (
+                        existing["p4n_id"].astype(str).str.strip().replace("nan", "")
+                    )
+                else:
+                    existing["p4n_id"] = ""
 
+                # Normalize last_scraped in existing data
                 if "last_scraped" in existing.columns:
                     existing["last_scraped"] = pd.to_datetime(
                         existing["last_scraped"], errors="coerce"
                     )
+                else:
+                    existing["last_scraped"] = pd.NaT
 
-            # Combine new (first) then existing so after sorting newer rows come first
+                # Drop rows with empty p4n_id in existing data as well
+                existing = existing[existing["p4n_id"].astype(bool)].copy()
+
+            # Mark source so we can prioritize new rows over existing ones
+            if not new_df.empty:
+                new_df["_is_new"] = True
+            if not existing.empty:
+                existing["_is_new"] = False
+
+            # Concatenate with new rows first so drop_duplicates keeps them
             final_df = pd.concat([new_df, existing], ignore_index=True, sort=False)
 
-            # Coerce combined last_scraped before sorting to avoid mixed-type comparison
+            # Ensure last_scraped is datetime on the combined frame
             if "last_scraped" in final_df.columns:
                 final_df["last_scraped"] = pd.to_datetime(
                     final_df["last_scraped"], errors="coerce"
                 )
 
-            final_df = final_df.sort_values("last_scraped", ascending=False)
+            # Drop duplicates by p4n_id keeping the first occurrence (new rows win)
+            if "p4n_id" in final_df.columns:
+                final_df = final_df.drop_duplicates(subset=["p4n_id"], keep="first")
 
-            # Drop duplicates by p4n_id keeping the first (most recent after sort)
-            final_df = final_df.drop_duplicates(subset=["p4n_id"], keep="first")
+            # Remove helper column if present
+            if "_is_new" in final_df.columns:
+                final_df = final_df.drop(columns=["_is_new"])
+
+            # Persist
             final_df.to_csv(self.csv_file, index=False)
 
         except Exception as e:

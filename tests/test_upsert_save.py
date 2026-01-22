@@ -5,14 +5,13 @@ os.environ.setdefault("GOOGLE_API_KEY", "test")
 import pandas as pd
 import pytest
 
-# Ensure the genai client has an API key during import so it doesn't raise
 from backbone_crawler import P4NScraper
 
 
-def make_row(pid, ts):
+def make_row(pid, ts, title=None):
     return {
         "p4n_id": str(pid),
-        "title": f"place-{pid}",
+        "title": title or f"place-{pid}",
         "last_scraped": ts,
     }
 
@@ -63,5 +62,54 @@ def test_upsert_fallback_on_concat_error(tmp_path, monkeypatch):
     assert out.exists()
     df = pd.read_csv(out)
     assert "300" in df["p4n_id"].astype(str).tolist()
-    assert "300" in df["p4n_id"].astype(str).tolist()
-    assert "300" in df["p4n_id"].astype(str).tolist()
+
+
+def test_dedupe_prioritizes_new(tmp_path):
+    out = tmp_path / "out3.csv"
+    # existing row older
+    existing = pd.DataFrame(
+        [{"p4n_id": "500", "title": "old-title", "last_scraped": "2025-12-31 00:00:00"}]
+    )
+    existing.to_csv(out, index=False)
+
+    scraper = P4NScraper(is_dev=True)
+    scraper.csv_file = str(out)
+    scraper.existing_df = pd.read_csv(scraper.csv_file)
+
+    # new row same id but newer timestamp and different title
+    scraper.processed_batch = [
+        {"p4n_id": "500", "title": "new-title", "last_scraped": "2026-01-22 12:00:00"}
+    ]
+
+    scraper._upsert_and_save()
+
+    df = pd.read_csv(out)
+    assert df.shape[0] == 1
+    assert df.loc[0, "title"] == "new-title"
+
+
+def test_p4n_id_type_coercion(tmp_path):
+    out = tmp_path / "out4.csv"
+    # existing has p4n_id as int in CSV
+    existing = pd.DataFrame(
+        [{"p4n_id": 600, "title": "int-id", "last_scraped": "2025-12-01 00:00:00"}]
+    )
+    existing.to_csv(out, index=False)
+    scraper = P4NScraper(is_dev=True)
+    scraper.csv_file = str(out)
+    scraper.existing_df = pd.read_csv(scraper.csv_file)
+    # new has same id as string
+    scraper.processed_batch = [
+        {
+            "p4n_id": "600",
+            "title": "string-id-new",
+            "last_scraped": "2026-01-22 13:00:00",
+        }
+    ]
+    scraper._upsert_and_save()
+    df = pd.read_csv(out)
+    ids = set(df["p4n_id"].astype(str).tolist())
+    assert "600" in ids
+    # ensure only one row and title is new
+    assert df.shape[0] == 1
+    assert df.loc[0, "title"] == "string-id-new"
