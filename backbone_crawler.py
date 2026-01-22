@@ -208,6 +208,19 @@ class P4NScraper:
                 return
 
             ts_print(f"➡️  [{current_num}/{total_num}] Scraped Item: {url}")
+
+            # Log start of scrape so failures still record which URL caused errors
+            p_id_guess = url.split("/")[-1]
+            PipelineLogger.log_event(
+                "START_SCRAPE",
+                {
+                    "url": url,
+                    "p4n_id_guess": p_id_guess,
+                    "attempt_index": current_num,
+                    "total": total_num,
+                },
+            )
+
             page = await context.new_page()
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=30000)
@@ -444,12 +457,26 @@ class P4NScraper:
                 else:
                     ts_print(f"⏩  [SKIP] Listing fresh: {link}")
                     self.stats["discarded_fresh"] += 1
+            # Run tasks and ensure we always attempt to save whatever we've
+            # processed so far. Errors are logged but do not prevent the
+            # fallback save in the finally block.
+            try:
+                if tasks:
+                    await asyncio.gather(*tasks)
+            except Exception as e:
+                ts_print(f"⚠️ Unhandled error during scraping: {e}")
+                PipelineLogger.log_event("RUN_ERROR", {"error": str(e)})
+            finally:
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
 
-            if tasks:
-                await asyncio.gather(*tasks)
-
-            await browser.close()
-            self._upsert_and_save()
+                try:
+                    self._upsert_and_save()
+                except Exception as e2:
+                    ts_print(f"⚠️ Error saving processed batch: {e2}")
+                    PipelineLogger.log_event("SAVE_ERROR", {"error": str(e2)})
 
             ts_print("=" * 40)
             ts_print("🏁 [RUN SUMMARY]")
@@ -465,33 +492,84 @@ class P4NScraper:
                 DailyQueueManager.increment_state()
 
     def _upsert_and_save(self):
+        # Try to safely upsert and save the processed_batch. If anything goes
+        # wrong we fall back to appending the new rows to the CSV so we never
+        # lose already-crawled items.
         if not self.processed_batch:
             return
-        new_df = pd.DataFrame(self.processed_batch)
-        # Normalize last_scraped to datetime to avoid mixed dtypes (str vs Timestamp)
-        if "last_scraped" in new_df.columns:
-            new_df["last_scraped"] = pd.to_datetime(
-                new_df["last_scraped"], errors="coerce"
+
+        try:
+            new_df = pd.DataFrame(self.processed_batch)
+
+            # Ensure p4n_id is consistently a string in both new and existing
+            if "p4n_id" in new_df.columns:
+                new_df["p4n_id"] = new_df["p4n_id"].astype(str)
+
+            # Normalize last_scraped to datetime to avoid mixed dtypes
+            if "last_scraped" in new_df.columns:
+                new_df["last_scraped"] = pd.to_datetime(
+                    new_df["last_scraped"], errors="coerce"
+                )
+            else:
+                new_df["last_scraped"] = pd.NaT
+
+            existing = (
+                self.existing_df.copy()
+                if not self.existing_df.empty
+                else pd.DataFrame()
             )
-        else:
-            new_df["last_scraped"] = pd.NaT
 
-        if not self.existing_df.empty and "last_scraped" in self.existing_df.columns:
-            self.existing_df["last_scraped"] = pd.to_datetime(
-                self.existing_df["last_scraped"], errors="coerce"
-            )
+            if not existing.empty:
+                # Coerce existing p4n_id to string so dedupe works across types
+                if "p4n_id" in existing.columns:
+                    existing["p4n_id"] = existing["p4n_id"].astype(str)
 
-        final_df = pd.concat([new_df, self.existing_df], ignore_index=True, sort=False)
+                if "last_scraped" in existing.columns:
+                    existing["last_scraped"] = pd.to_datetime(
+                        existing["last_scraped"], errors="coerce"
+                    )
 
-        # Ensure the combined column is datetime before sorting
-        if "last_scraped" in final_df.columns:
-            final_df["last_scraped"] = pd.to_datetime(
-                final_df["last_scraped"], errors="coerce"
-            )
+            # Combine new (first) then existing so after sorting newer rows come first
+            final_df = pd.concat([new_df, existing], ignore_index=True, sort=False)
 
-        final_df.sort_values("last_scraped", ascending=False).drop_duplicates(
-            "p4n_id"
-        ).to_csv(self.csv_file, index=False)
+            # Coerce combined last_scraped before sorting to avoid mixed-type comparison
+            if "last_scraped" in final_df.columns:
+                final_df["last_scraped"] = pd.to_datetime(
+                    final_df["last_scraped"], errors="coerce"
+                )
+
+            final_df = final_df.sort_values("last_scraped", ascending=False)
+
+            # Drop duplicates by p4n_id keeping the first (most recent after sort)
+            final_df = final_df.drop_duplicates(subset=["p4n_id"], keep="first")
+            final_df.to_csv(self.csv_file, index=False)
+
+        except Exception as e:
+            # Log the error and attempt a best-effort append of new rows.
+            PipelineLogger.log_event("UPSERT_SAVE_ERROR", {"error": str(e)})
+            ts_print(f"⚠️ Saving error: {e}. Attempting fallback append to CSV.")
+
+            try:
+                fallback_df = pd.DataFrame(self.processed_batch)
+                # Convert potentially-problematic columns to safe types
+                if "last_scraped" in fallback_df.columns:
+                    fallback_df["last_scraped"] = fallback_df["last_scraped"].astype(
+                        str
+                    )
+
+                # If file exists, append without header; otherwise create new file
+                if os.path.exists(self.csv_file):
+                    fallback_df.to_csv(
+                        self.csv_file, mode="a", index=False, header=False
+                    )
+                else:
+                    fallback_df.to_csv(self.csv_file, index=False)
+                ts_print(
+                    f"💾 Appended {len(fallback_df)} rows to {self.csv_file} (fallback)."
+                )
+            except Exception as e2:
+                PipelineLogger.log_event("UPSERT_SAVE_FINAL_ERROR", {"error": str(e2)})
+                ts_print(f"❌ Failed fallback save: {e2}")
 
 
 if __name__ == "__main__":
