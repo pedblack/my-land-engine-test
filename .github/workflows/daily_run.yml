@@ -50,6 +50,10 @@ jobs:
           pip install scikit-learn 
           playwright install chromium --with-deps
 
+      - name: Run Tests
+        run: |
+          pytest tests/*.py
+
       - name: Run Unified Scraper
         if: github.event.inputs.skip_crawl != 'true'
         env:
@@ -78,10 +82,6 @@ jobs:
 
       - name: Generate Visualization
         run: python visualize_land.py
-
-      - name: Run Tests
-        run: |
-          pytest tests/*.py
 
       - name: Upload Pipeline Artifacts
         if: always()
