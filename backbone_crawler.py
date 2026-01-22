@@ -14,7 +14,7 @@ from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
-MODEL_NAME = "gemini-2.5-flash-lite"
+MODEL_NAME = "gemini-2.5-flash"
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
