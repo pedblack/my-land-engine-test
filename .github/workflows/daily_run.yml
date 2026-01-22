@@ -94,6 +94,7 @@ jobs:
             strategic_analysis.json
             *.csv
             index.html
+            *.mp4
 
       - name: Commit and Push (Prod Only)
         # Runs on schedule OR if mode is NOT dev
