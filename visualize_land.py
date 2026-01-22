@@ -27,16 +27,26 @@ def generate_map():
 
     # 2. Load and clean data
     df = pd.read_csv(CSV_FILE)
+    
+    # Defensive cleaning for accurate filtering and display
+    df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce').fillna(0)
+    df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce').fillna(0)
+    df['avg_rating'] = pd.to_numeric(df['avg_rating'], errors='coerce').fillna(0)
+    df['num_places'] = pd.to_numeric(df['num_places'], errors='coerce').fillna(0).astype(int)
+    df['total_reviews'] = pd.to_numeric(df['total_reviews'], errors='coerce').fillna(0).astype(int)
+
     df_clean = df[(df['latitude'] != 0) & (df['longitude'] != 0)].dropna(subset=['latitude', 'longitude'])
 
     if df_clean.empty:
         print("⚠️ No valid data found.")
         return
 
+    # Dynamic limits for sliders
+    max_p_limit = int(df_clean['num_places'].max()) if not df_clean.empty else 100
+    max_r_limit = int(df_clean['total_reviews'].max()) if not df_clean.empty else 500
+
     # 3. Initialize Map
     m = folium.Map(location=[38.0, -8.5], zoom_start=8, tiles="cartodbpositron")
-    
-    # REQUIREMENT: Add Chart.js for the histogram
     m.get_root().header.add_child(folium.Element('<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>'))
 
     marker_layer = folium.FeatureGroup(name="MainPropertyLayer")
@@ -114,10 +124,11 @@ def generate_map():
             icon=folium.Icon(color=marker_color, icon=icon_type, prefix='fa')
         )
         
-        # EMBED DATA FOR JAVASCRIPT
+        # EMBED DATA FOR JAVASCRIPT: Added total_reviews for the new filter
         marker.options['extraData'] = {
             'rating': float(row['avg_rating']),
-            'places': num_places,
+            'places': int(num_places),
+            'reviews': int(row['total_reviews']),
             'type': str(row['location_type']),
             'score': opp_score,
             'seasonality': row['review_seasonality'] if pd.notna(row['review_seasonality']) else "{}",
@@ -142,7 +153,7 @@ def generate_map():
     ui_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed; z-index: 9999; overflow-y: auto; }}
-        #filter-panel {{ top: 20px; right: 20px; width: 220px; }}
+        #filter-panel {{ top: 20px; right: 20px; width: 220px; max-height: 90vh; }}
         #stats-panel {{ top: 20px; left: 20px; width: 320px; max-height: 70vh; }}
         .stat-section {{ margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px; font-size: 11px; }}
         .tag-item {{ display: flex; justify-content: space-between; margin-bottom: 2px; }}
@@ -176,11 +187,25 @@ def generate_map():
         <h3 style="margin:0;">Filters</h3>
         <p style="font-size: 12px;">Sites matching: <b id="match-count">{len(df_clean)}</b></p>
         
-        <label style="font-size:11px;">Min Rating: <span id="txt-rating">0</span></label>
-        <input type="range" id="range-rating" min="0" max="5" step="0.1" value="0" style="width:100%" oninput="document.getElementById('txt-rating').innerText=this.value">
-        
-        <label style="font-size:11px;">Min Places: <span id="txt-places">0</span></label>
-        <input type="range" id="range-places" min="0" max="100" step="5" value="0" style="width:100%" oninput="document.getElementById('txt-places').innerText=this.value">
+        <div class="stat-section">
+            <b>Min Rating: <span id="txt-rating">0</span></b>
+            <input type="range" id="range-rating" min="0" max="5" step="0.1" value="0" style="width:100%" oninput="document.getElementById('txt-rating').innerText=this.value">
+        </div>
+
+        <div class="stat-section">
+            <b>Min Places: <span id="txt-places">0</span></b>
+            <input type="range" id="range-places" min="0" max="{max_p_limit}" step="1" value="0" style="width:100%" oninput="document.getElementById('txt-places').innerText=this.value">
+        </div>
+
+        <div class="stat-section">
+            <b>Max Places: <span id="txt-max-places">{max_p_limit}</span></b>
+            <input type="range" id="range-max-places" min="0" max="{max_p_limit}" step="1" value="{max_p_limit}" style="width:100%" oninput="document.getElementById('txt-max-places').innerText=this.value">
+        </div>
+
+        <div class="stat-section">
+            <b>Max Total Reviews: <span id="txt-max-revs">{max_r_limit}</span></b>
+            <input type="range" id="range-max-revs" min="0" max="{max_r_limit}" step="5" value="{max_r_limit}" style="width:100%" oninput="document.getElementById('txt-max-revs').innerText=this.value">
+        </div>
         
         <select id="sel-type" style="width:100%; margin-top:10px;">
             <option value="All">All Types</option>
@@ -216,14 +241,9 @@ def generate_map():
             try {{
                 const s = JSON.parse(d.seasonality);
                 for (let date in s) {{
-                    // Seasonality Histogram Aggregation
                     const month = date.split('-')[1];
                     globalSeason[month] = (globalSeason[month] || 0) + s[date];
-                    
-                    // Recent Review Calculation (>= 2024-01)
-                    if (date >= "2024-01") {{
-                        totalRecentReviews += s[date];
-                    }}
+                    if (date >= "2024-01") {{ totalRecentReviews += s[date]; }}
                 }}
             }} catch(e) {{}}
             const p = parseThemeString(d.pros);
@@ -232,11 +252,9 @@ def generate_map():
             for (let k in c) {{ globalCons[k] = (globalCons[k] || 0) + c[k]; }}
         }});
 
-        // Update Text Stats
         document.getElementById('recent-review-count').innerText = totalRecentReviews.toLocaleString();
         document.getElementById('agg-count').innerText = activeMarkers.length;
 
-        // Render Histogram
         const labels = ["01","02","03","04","05","06","07","08","09","10","11","12"];
         const ctx = document.getElementById('seasonChart').getContext('2d');
         if (chartInstance) chartInstance.destroy();
@@ -249,7 +267,6 @@ def generate_map():
             options: {{ plugins: {{ legend: {{ display: false }} }}, scales: {{ y: {{ beginAtZero: true }} }} }}
         }});
 
-        // Render Top 10 Lists
         const renderTop10 = (data, divId) => {{
             const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0, 10);
             document.getElementById(divId).innerHTML = sorted.map(i => 
@@ -262,6 +279,8 @@ def generate_map():
     function applyFilters() {{
         const minR = parseFloat(document.getElementById('range-rating').value);
         const minP = parseInt(document.getElementById('range-places').value);
+        const maxP = parseInt(document.getElementById('range-max-places').value);
+        const maxRev = parseInt(document.getElementById('range-max-revs').value);
         const type = document.getElementById('sel-type').value;
 
         var targetLayer = window['{layer_var}'];
@@ -270,12 +289,15 @@ def generate_map():
         targetLayer.clearLayers();
         const filtered = markerStore.filter(m => {{
             const d = m.options.extraData;
-            return d.rating >= minR && d.places >= minP && (type === "All" || d.type === type);
+            return d.rating >= minR && 
+                   d.places >= minP && 
+                   d.places <= maxP && 
+                   d.reviews <= maxRev && 
+                   (type === "All" || d.type === type);
         }});
 
         filtered.forEach(m => targetLayer.addLayer(m));
         document.getElementById('match-count').innerText = filtered.length;
-        
         updateDashboard(filtered);
     }}
 
@@ -284,6 +306,10 @@ def generate_map():
         document.getElementById('txt-rating').innerText = 0;
         document.getElementById('range-places').value = 0;
         document.getElementById('txt-places').innerText = 0;
+        document.getElementById('range-max-places').value = {max_p_limit};
+        document.getElementById('txt-max-places').innerText = {max_p_limit};
+        document.getElementById('range-max-revs').value = {max_r_limit};
+        document.getElementById('txt-max-revs').innerText = {max_r_limit};
         document.getElementById('sel-type').value = "All";
         applyFilters();
     }}
@@ -298,7 +324,7 @@ def generate_map():
     """
     m.get_root().html.add_child(folium.Element(ui_html))
     m.save("index.html")
-    print(f"🚀 Map generated with dynamic stats (including Recent Reviews) and filtering.")
+    print(f"🚀 Map generated with Recent Reviews and Max Review/Places filters.")
 
 if __name__ == "__main__":
     generate_map()
