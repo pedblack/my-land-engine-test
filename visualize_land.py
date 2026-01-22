@@ -13,7 +13,7 @@ def generate_map():
         print(f"❌ {CSV_FILE} not found.")
         return
 
-    # 1. Load Strategic Intelligence
+    # 1. Load Strategic Intelligence (Universal Score Map)
     score_map = {}
     recommendation = None
     if os.path.exists(STRATEGIC_FILE):
@@ -27,6 +27,8 @@ def generate_map():
 
     # 2. Load and clean data
     df = pd.read_csv(CSV_FILE)
+    
+    # Defensive cleaning
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce').fillna(0)
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce').fillna(0)
     df['avg_rating'] = pd.to_numeric(df['avg_rating'], errors='coerce').fillna(0)
@@ -39,26 +41,28 @@ def generate_map():
         print("⚠️ No valid data found.")
         return
 
+    # Dynamic limits for sliders
     max_p_limit = int(df_clean['num_places'].max()) if not df_clean.empty else 100
-    max_r_limit = int(df_clean['total_reviews'].max()) if not df_clean.empty else 500
 
     # 3. Initialize Map
     m = folium.Map(location=[38.0, -8.5], zoom_start=8, tiles="cartodbpositron")
     
-    # Dependencies
+    # Inject External Dependencies (noUiSlider & Chart.js)
     m.get_root().header.add_child(folium.Element('<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>'))
     m.get_root().header.add_child(folium.Element('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider/dist/nouislider.min.css">'))
     m.get_root().header.add_child(folium.Element('<script src="https://cdn.jsdelivr.net/npm/nouislider/dist/nouislider.min.js"></script>'))
 
     marker_layer = folium.FeatureGroup(name="MainPropertyLayer")
     marker_layer.add_to(m)
-    layer_var = marker_layer.get_name()
+    layer_name = marker_layer.get_name() # Capture internal ID for JS
 
     prop_types = sorted(df_clean['location_type'].unique().tolist())
 
     for _, row in df_clean.iterrows():
         def clean_int(val):
-            try: return int(float(val)) if pd.notna(val) else 0
+            try:
+                if pd.isna(val) or val == "": return 0
+                return int(float(val))
             except: return 0
 
         def format_cost(val):
@@ -92,8 +96,8 @@ def generate_map():
         else: marker_color, icon_type = 'orange', 'home'
 
         popup_html = f"""<div style="font-family: Arial; width: 320px; font-size: 13px;">
-            <div style="float: right; background: {'#f1c40f' if opp_score >= 85 else '#eee'}; padding: 4px; border-radius: 4px; font-weight: bold;">Score: {opp_score if opp_score > 0 else 'N/A'}</div>
-            <h3 style="margin-bottom: 5px; margin-top: 0;">{row['title']}</h3>
+            <div style="float: right; background: {'#f1c40f' if opp_score >= 85 else '#eee'}; padding: 4px; border-radius: 4px; font-weight: bold;">Score: {opp_score}</div>
+            <h3 style="margin: 0;">{row['title']}</h3>
             <div style="color: #666; font-style: italic; margin-bottom: 10px;">{row['location_type']}</div>
             <b>FIRE Stats:</b> {num_places} places | <b>Rating:</b> {row['avg_rating']}⭐ ({row['total_reviews']} revs)<br>
             <b>Costs:</b> {parking_display} | <b>Elec:</b> {elec}<br>
@@ -113,7 +117,7 @@ def generate_map():
             icon=folium.Icon(color=marker_color, icon=icon_type, prefix='fa')
         )
         
-        # Fixed: Removed double curly braces to prevent unhashable type error
+        # We assign as a standard dictionary
         marker.options['extraData'] = {
             'rating': float(row['avg_rating']),
             'places': int(num_places),
@@ -148,14 +152,14 @@ def generate_map():
         .noUi-connect {{ background: #2c3e50; }}
         .noUi-handle {{ width: 18px !important; height: 18px !important; right: -9px !important; top: -5px !important; border-radius: 50%; cursor: pointer; }}
         .noUi-handle:after, .noUi-handle:before {{ display: none; }}
-        select[multiple] {{ width: 100%; height: 100px; border-radius: 6px; border: 1px solid #ccc; }}
+        select[multiple] {{ width: 100%; height: 120px; border-radius: 6px; border: 1px solid #ccc; }}
     </style>
 
     {strat_box}
 
     <div id="stats-panel" class="map-overlay">
         <h4 style="margin:0;">📊 Market Intelligence</h4>
-        <p style="font-size: 11px; color: #666; margin-bottom: 4px;">Aggregating <span id="agg-count">0</span> visible sites</p>
+        <p style="font-size: 11px; color: #666; margin-bottom: 4px;">Aggregating <span id="agg-count">0</span> sites</p>
         <p style="font-size: 11px; color: #2c3e50; margin: 0;"><b>Total Places:</b> <span id="total-places-count">0</span></p>
         <p style="font-size: 11px; color: #2c3e50; margin: 0;"><b>Avg Rating:</b> <span id="avg-rating-count">0</span> ⭐</p>
         
@@ -175,17 +179,14 @@ def generate_map():
 
     <div id="filter-panel" class="map-overlay">
         <h3 style="margin:0 0 10px 0;">Filters</h3>
-        
         <div class="stat-section" style="border:none; padding:0;">
             <b>Rating: <span id="lbl-rating">0 - 5</span> ⭐</b>
             <div class="slider-wrap"><div id="slider-rating"></div></div>
         </div>
-
         <div class="stat-section">
             <b>Places: <span id="lbl-places">0 - {max_p_limit}</span></b>
             <div class="slider-wrap"><div id="slider-places"></div></div>
         </div>
-
         <div class="stat-section">
             <b>Property Types</b>
             <select id="sel-type" multiple>
@@ -193,7 +194,6 @@ def generate_map():
                 {" ".join([f'<option value="{t}">{t}</option>' for t in prop_types])}
             </select>
         </div>
-        
         <button onclick="applyFilters()" style="width:100%; padding:10px; background:#2c3e50; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; margin-top:10px;">Apply Filters</button>
         <button onclick="resetFilters()" style="width:100%; margin-top:5px; border:none; background:none; color:#666; cursor:pointer; font-size:11px;">Reset All</button>
     </div>
@@ -208,19 +208,9 @@ def generate_map():
         if (!str) return results;
         str.split(';').forEach(item => {{
             const match = item.match(/(.+)\\s\\((\\d+)\\)/);
-            if (match) {{ results[match[1].trim()] = parseInt(match[2]); }}
+            if (match) results[match[1].trim()] = parseInt(match[2]);
         }});
         return results;
-    }}
-
-    function initSliders() {{
-        sRating = document.getElementById('slider-rating');
-        noUiSlider.create(sRating, {{ start: [0, 5], connect: true, step: 0.1, range: {{'min': 0, 'max': 5}} }});
-        sRating.noUiSlider.on('update', (v) => {{ document.getElementById('lbl-rating').innerText = parseFloat(v[0]).toFixed(1) + ' - ' + parseFloat(v[1]).toFixed(1); }});
-
-        sPlaces = document.getElementById('slider-places');
-        noUiSlider.create(sPlaces, {{ start: [0, {max_p_limit}], connect: true, step: 1, range: {{'min': 0, 'max': {max_p_limit}}} }});
-        sPlaces.noUiSlider.on('update', (v) => {{ document.getElementById('lbl-places').innerText = parseInt(v[0]) + ' - ' + parseInt(v[1]); }});
     }}
 
     function updateDashboard(activeMarkers) {{
@@ -272,15 +262,14 @@ def generate_map():
         const [minP, maxP] = sPlaces.noUiSlider.get().map(parseInt);
         const selTypes = Array.from(document.getElementById('sel-type').selectedOptions).map(o => o.value);
 
-        var targetLayer = window['{layer_var}'];
+        const targetLayer = window['{layer_name}'];
         if (!markerStore) markerStore = targetLayer.getLayers();
 
         targetLayer.clearLayers();
         const filtered = markerStore.filter(m => {{
             const d = m.options.extraData;
-            return d.rating >= minR && d.rating <= maxR &&
-                   d.places >= minP && d.places <= maxP &&
-                   (selTypes.includes("All") || selTypes.includes(d.type));
+            const typeMatch = selTypes.includes("All") || selTypes.includes(d.type);
+            return d.rating >= minR && d.rating <= maxR && d.places >= minP && d.places <= maxP && typeMatch;
         }});
 
         filtered.forEach(m => targetLayer.addLayer(m));
@@ -296,10 +285,20 @@ def generate_map():
     }}
     
     window.onload = () => {{
-        initSliders();
+        sRating = document.getElementById('slider-rating');
+        noUiSlider.create(sRating, {{ start: [0, 5], connect: true, step: 0.1, range: {{'min': 0, 'max': 5}} }});
+        sRating.noUiSlider.on('update', v => document.getElementById('lbl-rating').innerText = parseFloat(v[0]).toFixed(1) + ' - ' + parseFloat(v[1]).toFixed(1));
+
+        sPlaces = document.getElementById('slider-places');
+        noUiSlider.create(sPlaces, {{ start: [0, {max_p_limit}], connect: true, step: 1, range: {{'min': 0, 'max': {max_p_limit}}} }});
+        sPlaces.noUiSlider.on('update', v => document.getElementById('lbl-places').innerText = parseInt(v[0]) + ' - ' + parseInt(v[1]));
+
         setTimeout(() => {{
-            var layer = window['{layer_var}'];
-            if (layer) updateDashboard(layer.getLayers());
+            const layer = window['{layer_name}'];
+            if (layer) {{
+                markerStore = layer.getLayers();
+                updateDashboard(markerStore);
+            }}
         }}, 1000);
     }};
     </script>
