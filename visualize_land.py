@@ -286,12 +286,31 @@ def generate_map(output_file="index.html"):
             options: {{ plugins: {{ legend: {{ display: false }} }}, scales: {{ y: {{ beginAtZero: true }} }} }}
         }});
 
-        const renderList = (data, id) => {{
+        const renderList = (data, id, type) => {{
             const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0, 8);
-            document.getElementById(id).innerHTML = sorted.map(i => `<div class="tag-item"><span>${{i[0]}}</span><b>${{i[1]}}</b></div>`).join('');
+            document.getElementById(id).innerHTML = sorted.map(i => 
+                `<div class="tag-item" style="cursor:pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'" onclick="filterByTag(this.getAttribute('data-tag'), '${{type}}')" data-tag="${{i[0].replace(/"/g, '&quot;')}}"><span>${{i[0]}}</span><b>${{i[1]}}</b></div>`
+            ).join('');
         }};
-        renderList(globalPros, 'top-pros');
-        renderList(globalCons, 'top-cons');
+        renderList(globalPros, 'top-pros', 'pros');
+        renderList(globalCons, 'top-cons', 'cons');
+    }}
+
+    function filterByTag(tag, type) {{
+        const targetLayer = {layer_name};
+        if (!markerStore) {{
+            markerStore = targetLayer.getLayers();
+        }}
+
+        targetLayer.clearLayers();
+        const filtered = markerStore.filter(m => {{
+            const d = m.options.extraData;
+            const tags = parseThemeString(d[type]);
+            return tags && tags.hasOwnProperty(tag);
+        }});
+
+        filtered.forEach(m => targetLayer.addLayer(m));
+        updateDashboard(filtered);
     }}
 
     function applyFilters() {{
