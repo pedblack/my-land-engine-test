@@ -172,56 +172,67 @@ class P4NScraper:
 
         system_instruction = """Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
 
-        Schema:
+        ### TAXONOMY (Use ONLY these keys for pros_cons) ###
+
+        PRO_KEYS:
+        - quiet_peaceful_atmosphere, beautiful_scenery_views, friendly_welcoming_staff, clean_sanitary_facilities, hot_showers_available, spacious_pitches, flat_level_spots, shaded_parking_areas, good_value_affordable, free_parking_services, proximity_to_beach, proximity_to_town_center, proximity_to_supermarkets_shops, restaurant_bar_nearby, bakery_service_bread_available, water_fill_waste_disposal_available, electricity_available_included, good_wifi_internet_signal, dog_friendly_environment, safe_secure_location, swimming_pool_lake_access, hiking_walking_trails_nearby, cycling_bike_paths_nearby, family_child_friendly, easy_access_large_vehicles, washing_machines_laundry_service, nature_wildlife_setting
+
+        CON_KEYS:
+        - noise_disturbance_general, road_traffic_noise, barking_dogs, construction_noise, dirty_unkept_facilities, unpleasant_smells, litter_trash_accumulation, uneven_sloping_ground, muddy_terrain, dusty_environment, difficult_access_narrow_roads, tight_maneuvering_small_spaces, overcrowded_packed, expensive_overpriced, payment_issues_friction, lack_of_services, broken_outdated_facilities, cold_showers_no_hot_water, poor_wifi_signal, insects_mosquitoes_flies, stray_animals_pests, unsafe_insecure_feeling, police_fines_risk, long_distance_amenities, rude_staff_unfriendly, limited_opening_hours_access
+
+        ### JSON SCHEMA ###
         {
-          "num_places": int,
-          "parking_min": float,
-          "parking_max": float,
-          "electricity_eur": float,
-          "top_languages": [ {"lang": "string", "count": int} ],
-          "pros_cons": {
+        "num_places": int,
+        "parking_min": float,
+        "parking_max": float,
+        "electricity_eur": float,
+        "top_languages": [ {"lang": "string", "count": int} ],
+        "pros_cons": {
             "pros": [ {"topic": "string", "count": int} ],
             "cons": [ {"topic": "string", "count": int} ]
-          }
+        }
         }
 
-        Instructions:
+        ### INSTRUCTIONS ###
         1. num_places: Extract from the 'places_count' field.
-        2. Pricing: Extract min/max range. If only one price exists, set both. If included in parking, set electricity_eur to 0.0.
-        3. Languages: Detect review languages and provide frequency counts.
-        4. Themes: Extract pro/con themes (3-5 words max). You MUST provide a count for each theme.
-        5. Priorities: For 'cons', highlight overcrowding, police/fines, or lack of services to help calculate the Frustration Index.
-        6. Missing Data: Use null for missing numeric data. Do not hallucinate counts.
-
-        Example Theme Format: {"topic": "quiet at night", "count": 5}"""
+        2. Pricing: Extract min/max range. If included in parking, set electricity_eur to 0.0.
+        3. Missing Data: Use null for missing numeric data. Do not hallucinate.
+        4. Themes: Map review comments to the closest matching key in the TAXONOMY. If a specific review does not fit any key, ignore that specific point to avoid noise.
+        5. Priorities: For 'cons', specifically ensure police_fines_risk and overcrowded_packed are accurately counted to feed the Frustration Index."""
 
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.1,
             system_instruction=system_instruction,
         )
-        
+
         for attempt in range(MAX_GEMINI_RETRIES):
             try:
                 # Exponential backoff: wait longer on each attempt
-                await asyncio.sleep(AI_DELAY * (attempt + 1)) 
-                
+                await asyncio.sleep(AI_DELAY * (attempt + 1))
+
                 response = await client.aio.models.generate_content(
-                    model=model_name, contents=f"ANALYZE:\n{json_payload}", config=config
+                    model=model_name,
+                    contents=f"ANALYZE:\n{json_payload}",
+                    config=config,
                 )
-                
+
                 clean_text = re.sub(r"```json\s*|\s*```", "", response.text).strip()
                 ai_json = json.loads(clean_text)
-                PipelineLogger.log_event("GEMINI_ANSWER", {"model": model_name, "response": ai_json})
+                PipelineLogger.log_event(
+                    "GEMINI_ANSWER", {"model": model_name, "response": ai_json}
+                )
                 return ai_json
 
             except Exception as e:
                 # Check for transient 503 or Overloaded errors for retry
                 if "503" in str(e) or "overloaded" in str(e).lower():
                     if attempt < MAX_GEMINI_RETRIES - 1:
-                        ts_print(f"🔄 [RETRY] Attempt {attempt+1} failed for {url}. Retrying...")
+                        ts_print(
+                            f"🔄 [RETRY] Attempt {attempt+1} failed for {url}. Retrying..."
+                        )
                         continue
-                
+
                 # If non-retryable or attempts exhausted, capture token count and log error
                 try:
                     token_count_resp = await client.aio.models.count_tokens(
@@ -231,8 +242,12 @@ class P4NScraper:
                 except:
                     tokens = "Unknown"
 
-                ts_print(f"❌ [GEMINI ERROR] URL: {url} | Model: {model_name} | Reviews: {num_reviews} | Tokens: {tokens} | Error: {e}")
-                PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e), "model": model_name})
+                ts_print(
+                    f"❌ [GEMINI ERROR] URL: {url} | Model: {model_name} | Reviews: {num_reviews} | Tokens: {tokens} | Error: {e}"
+                )
+                PipelineLogger.log_event(
+                    "GEMINI_ERROR", {"error": str(e), "model": model_name}
+                )
                 self.stats["gemini_errors"] += 1
                 return {}
 
@@ -262,25 +277,40 @@ class P4NScraper:
                 await asyncio.sleep(5.0)
 
                 stats_container = page.locator(".place-feedback-average")
-                
+
                 # DEFENSIVE FIX: Extract review count safely to avoid NoneType error
                 raw_count_text = await stats_container.locator("strong").text_content()
                 count_match = re.search(r"(\d+)", raw_count_text)
                 actual_feedback_count = int(count_match.group(1)) if count_match else 0
 
                 if actual_feedback_count < MIN_REVIEWS_THRESHOLD:
-                    ts_print(f"🗑️  [DISCARD] Low feedback ({actual_feedback_count} reviews) for: {url}")
+                    ts_print(
+                        f"🗑️  [DISCARD] Low feedback ({actual_feedback_count} reviews) for: {url}"
+                    )
                     self.stats["discarded_low_feedback"] += 1
                     return
 
-                p_id = await page.locator("body").get_attribute("data-place-id") or url.split("/")[-1]
-                title = ((await page.locator("h1").first.text_content()).split("\n")[0].strip())
+                p_id = (
+                    await page.locator("body").get_attribute("data-place-id")
+                    or url.split("/")[-1]
+                )
+                title = (
+                    (await page.locator("h1").first.text_content())
+                    .split("\n")[0]
+                    .strip()
+                )
 
                 lat, lng = 0.0, 0.0
                 coord_link_el = page.locator("a[href*='lat='][href*='lng=']").first
-                coord_link = await coord_link_el.get_attribute("href") if await coord_link_el.count() > 0 else None
+                coord_link = (
+                    await coord_link_el.get_attribute("href")
+                    if await coord_link_el.count() > 0
+                    else None
+                )
                 if coord_link:
-                    m = re.search(r"lat=([-+]?\d*\.\d+|\d+)&lng=([-+]?\d*\.\d+|\d+)", coord_link)
+                    m = re.search(
+                        r"lat=([-+]?\d*\.\d+|\d+)&lng=([-+]?\d*\.\d+|\d+)", coord_link
+                    )
                     if m:
                         lat, lng = float(m.group(1)), float(m.group(2))
 
@@ -289,25 +319,44 @@ class P4NScraper:
 
                 for article in review_articles:
                     try:
-                        date_text = await article.locator("span.caption.text-gray").text_content()
-                        text_val = await article.locator(".place-feedback-article-content").text_content()
+                        date_text = await article.locator(
+                            "span.caption.text-gray"
+                        ).text_content()
+                        text_val = await article.locator(
+                            ".place-feedback-article-content"
+                        ).text_content()
                         date_parts = date_text.strip().split("/")
                         if len(date_parts) == 3:
-                            date_val = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+                            date_val = (
+                                f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
+                            )
                             if is_review_within_years(date_val, REVIEW_YEARS):
                                 month_key = f"{date_parts[2]}-{date_parts[1]}"
-                                review_seasonality[month_key] = review_seasonality.get(month_key, 0) + 1
-                                formatted_reviews.append(f"[{date_val}]: {text_val.strip()}")
-                    except: continue
+                                review_seasonality[month_key] = (
+                                    review_seasonality.get(month_key, 0) + 1
+                                )
+                                formatted_reviews.append(
+                                    f"[{date_val}]: {text_val.strip()}"
+                                )
+                    except:
+                        continue
 
                 raw_payload = {
-                    "places_count": int(val) if (val := await self._get_dl(page, "Number of places")).isdigit() else 0,
+                    "places_count": (
+                        int(val)
+                        if (
+                            val := await self._get_dl(page, "Number of places")
+                        ).isdigit()
+                        else 0
+                    ),
                     "parking_cost": await self._get_dl(page, "Parking cost"),
                     "all_reviews": formatted_reviews,
                 }
 
                 review_count = len(formatted_reviews)
-                selected_model = FLASH_MODEL if review_count > REVIEW_COUNT_THRESHOLD else LITE_MODEL
+                selected_model = (
+                    FLASH_MODEL if review_count > REVIEW_COUNT_THRESHOLD else LITE_MODEL
+                )
 
                 # Pass 'url' to enable immediate diagnostic logging on error
                 ai_data = await self.analyze_with_ai(raw_payload, selected_model, url)
@@ -320,14 +369,40 @@ class P4NScraper:
                 avg_rating = float(rating_match.group(1)) if rating_match else 0.0
 
                 row = {
-                    "p4n_id": p_id, "title": title, "url": url, "latitude": lat, "longitude": lng,
-                    "location_type": await self._get_type(page), "num_places": ai_data.get("num_places"),
-                    "total_reviews": actual_feedback_count, "avg_rating": avg_rating,
-                    "parking_min_eur": ai_data.get("parking_min"), "parking_max_eur": ai_data.get("parking_max"),
-                    "electricity_eur": ai_data.get("electricity_eur"), "review_seasonality": json.dumps(review_seasonality),
-                    "top_languages": "; ".join([f"{l.get('lang')} ({l.get('count')})" for l in top_langs if isinstance(l, dict)]),
-                    "ai_pros": "; ".join([f"{p.get('topic')} ({p.get('count')})" for p in pros_cons.get("pros", []) if isinstance(p, dict)]),
-                    "ai_cons": "; ".join([f"{c.get('topic')} ({c.get('count')})" for c in pros_cons.get("cons", []) if isinstance(c, dict)]),
+                    "p4n_id": p_id,
+                    "title": title,
+                    "url": url,
+                    "latitude": lat,
+                    "longitude": lng,
+                    "location_type": await self._get_type(page),
+                    "num_places": ai_data.get("num_places"),
+                    "total_reviews": actual_feedback_count,
+                    "avg_rating": avg_rating,
+                    "parking_min_eur": ai_data.get("parking_min"),
+                    "parking_max_eur": ai_data.get("parking_max"),
+                    "electricity_eur": ai_data.get("electricity_eur"),
+                    "review_seasonality": json.dumps(review_seasonality),
+                    "top_languages": "; ".join(
+                        [
+                            f"{l.get('lang')} ({l.get('count')})"
+                            for l in top_langs
+                            if isinstance(l, dict)
+                        ]
+                    ),
+                    "ai_pros": "; ".join(
+                        [
+                            f"{p.get('topic')} ({p.get('count')})"
+                            for p in pros_cons.get("pros", [])
+                            if isinstance(p, dict)
+                        ]
+                    ),
+                    "ai_cons": "; ".join(
+                        [
+                            f"{c.get('topic')} ({c.get('count')})"
+                            for c in pros_cons.get("cons", [])
+                            if isinstance(c, dict)
+                        ]
+                    ),
                     "last_scraped": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
                 PipelineLogger.log_event("STORED_ROW", row)
