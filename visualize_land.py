@@ -181,6 +181,7 @@ def generate_map(output_file="index.html"):
     ui_html = f"""
     <style>
         .map-overlay {{ font-family: sans-serif; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: fixed; z-index: 9999; overflow-y: auto; }}
+        .scrollable-list {{ max-height: 150px; overflow-y: auto; border: 1px solid #eee; padding: 5px; border-radius: 6px; margin-top: 5px; }}
         #filter-panel {{ top: 20px; right: 20px; width: 250px; max-height: 90vh; }}
         #stats-panel {{ top: 20px; left: 20px; width: 320px; max-height: 70vh; }}
         .stat-section {{ margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; font-size: 11px; }}
@@ -206,11 +207,11 @@ def generate_map(output_file="index.html"):
         </div>
         <div class="stat-section">
             <b style="color: green;">Top Pros</b>
-            <div id="top-pros"></div>
+            <div id="top-pros" class="scrollable-list"></div>
         </div>
         <div class="stat-section">
             <b style="color: #d35400;">Top Cons</b>
-            <div id="top-cons"></div>
+            <div id="top-cons" class="scrollable-list"></div>
         </div>
     </div>
 
@@ -287,7 +288,7 @@ def generate_map(output_file="index.html"):
         }});
 
         const renderList = (data, id, type) => {{
-            const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0, 8);
+            const sorted = Object.entries(data).sort((a,b) => b[1]-a[1]);
             document.getElementById(id).innerHTML = sorted.map(i => 
                 `<div class="tag-item" style="cursor:pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'" onclick="filterByTag(this.getAttribute('data-tag'), '${{type}}')" data-tag="${{i[0].replace(/"/g, '&quot;')}}"><span>${{i[0]}}</span><b>${{i[1]}}</b></div>`
             ).join('');
