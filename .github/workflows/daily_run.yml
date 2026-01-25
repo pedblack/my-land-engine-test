@@ -62,10 +62,17 @@ jobs:
           P4N_USERNAME: ${{ secrets.P4N_USERNAME }}
           P4N_PASSWORD: ${{ secrets.P4N_PASSWORD }}
         run: |
-          ARGS=()
+          # Always start with the --force flag to stop staleness checks
+          ARGS=("--force")
+          
           if [[ "${{ github.event.inputs.mode }}" == "dev" ]]; then ARGS+=("--dev"); fi
+          
+          # Allow the manual trigger to still control force if needed, 
+          # but the base ARGS ensures it is always on.
           if [[ "${{ github.event.inputs.force_recrawl }}" == "true" ]]; then ARGS+=("--force"); fi
+          
           if [[ -n "${{ github.event.inputs.url }}" ]]; then ARGS+=("--url" "${{ github.event.inputs.url }}"); fi
+          
           python backbone_crawler.py "${ARGS[@]}"
 
       - name: Set Intelligence Environment
