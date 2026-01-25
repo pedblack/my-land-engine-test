@@ -5,6 +5,7 @@
         "market_gap": "High frustration index identified in cluster."
     },
     "full_score_map": {
+        "99805": 53.14,
         "338554": 53.14,
         "646606": 53.14,
         "440341": 53.14,
@@ -43,7 +44,6 @@
         "89145": 53.14,
         "485274": 53.14,
         "303940": 53.14,
-        "99805": 53.14,
         "109040": 53.14,
         "118590": 53.14,
         "418320": 53.14,
@@ -578,7 +578,7 @@
             ]
         },
         {
-            "cluster_name": "Region 0 ((7670) Funcheir)",
+            "cluster_name": "Region 0 ((7630-208) Odem)",
             "opportunity_score": 53.14,
             "top_performing_p4n_ids": [
                 166229,
