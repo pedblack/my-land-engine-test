@@ -97,20 +97,27 @@ jobs:
             *.mp4
 
       - name: Commit and Push (Prod Only)
-        # Runs on schedule OR if mode is NOT dev
         if: github.event_name == 'schedule' || github.event.inputs.mode == 'prod'
         run: |
           git config --global user.name "P4N Bot"
           git config --global user.email "bot@github.com"
           
-          # Defensive add: only add files that actually exist
+          # 1. Fetch latest changes without merging yet
+          git fetch origin main
+          
+          # 2. Stage the specific files we care about
           for file in backbone_locations.csv index.html queue_state.json strategic_analysis.json; do
             if [ -f "$file" ]; then git add "$file"; fi
           done
           
+          # 3. Check if there is actually anything to commit
           if ! git diff --staged --quiet; then
             git commit -m "Auto-update strategic intelligence [skip ci]"
-            git pull --rebase origin main
+            
+            # 4. Use 'Strategy-Ours' to prioritize bot data or simply pull before push
+            # This handles the conflict by merging remote changes but keeping our new files
+            git pull origin main --rebase --strategy-option=theirs
+            
             git push origin main
           else
             echo "No changes detected. Skipping push."
