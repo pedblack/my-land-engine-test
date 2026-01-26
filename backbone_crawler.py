@@ -164,16 +164,19 @@ class P4NScraper:
         else:
             self.stats["gemini_lite_calls"] += 1
 
-        # Load dynamic taxonomy from JSON file
+        # Load dynamic taxonomy from JSON file with descriptions
         try:
             with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
                 tax_data = json.load(f)
-                # Extract the "topic" value from each object in the pros and cons lists
-                pro_keys = [item["topic"] for item in tax_data.get("pros", []) if isinstance(item, dict)]
-                con_keys = [item["topic"] for item in tax_data.get("cons", []) if isinstance(item, dict)]
                 
-                pro_keys_str = ", ".join(pro_keys)
-                con_keys_str = ", ".join(con_keys)
+                # Format each entry as "topic: description" for better AI context
+                pro_list = [f"- {item['topic']}: {item['description']}" 
+                            for item in tax_data.get("pros", []) if isinstance(item, dict)]
+                con_list = [f"- {item['topic']}: {item['description']}" 
+                            for item in tax_data.get("cons", []) if isinstance(item, dict)]
+                
+                pro_taxonomy_block = "\n".join(pro_list)
+                con_taxonomy_block = "\n".join(con_list)
         except Exception as e:
             ts_print(f"❌ FAILED TO LOAD TAXONOMY: {e}")
             return {}
@@ -187,13 +190,13 @@ class P4NScraper:
 
         system_instruction = f"""Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
 
-        ### TAXONOMY (Strictly Use ONLY these keys) ###
+        ### TAXONOMY DEFINITIONS (Use ONLY the keys listed below) ###
         
         PRO_KEYS:
-        - {pro_keys_str}
+        {pro_taxonomy_block}
         
         CON_KEYS:
-        - {con_keys_str}
+        {con_taxonomy_block}
         
         ### JSON SCHEMA ###
         {{
