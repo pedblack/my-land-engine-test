@@ -23,20 +23,22 @@ def ts_print(msg):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
 def load_current_taxonomy():
-    """Reads the current taxonomy from the JSON file and formats it for the AI."""
+    """Reads the current taxonomy from the JSON file and formats it with descriptions for the AI."""
     if os.path.exists(TAXONOMY_FILE):
         try:
             with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 
-                # Extract the "topic" value from each object in the pros and cons lists
-                pro_keys = [item["topic"] for item in data.get("pros", []) if isinstance(item, dict)]
-                con_keys = [item["topic"] for item in data.get("cons", []) if isinstance(item, dict)]
+                # Format each entry as "topic: description"
+                pro_lines = [f"- {item['topic']}: {item['description']}" 
+                             for item in data.get("pros", []) if isinstance(item, dict)]
+                con_lines = [f"- {item['topic']}: {item['description']}" 
+                             for item in data.get("cons", []) if isinstance(item, dict)]
                 
-                pro_keys_str = ", ".join(pro_keys)
-                con_keys_str = ", ".join(con_keys)
+                pro_block = "\n".join(pro_lines)
+                con_block = "\n".join(con_lines)
                 
-                return f"PRO_KEYS: {pro_keys_str}\nCON_KEYS: {con_keys_str}"
+                return f"### PRO_KEYS (Topic: Definition) ###\n{pro_block}\n\n### CON_KEYS (Topic: Definition) ###\n{con_block}"
         except Exception as e:
             return f"Error loading taxonomy: {e}"
             
