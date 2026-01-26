@@ -349,3 +349,10 @@
     {
       "topic": "noise_natural_elements",
       "description": "Natural sounds (waves, intense wind) loud enough to disrupt sleep."
+    },
+    {
+      "topic": "misc_other_cons",
+      "description": "Negative feedback that does not fit specific categories."
+    }
+  ]
+}
