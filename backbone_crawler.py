@@ -90,12 +90,16 @@ class PipelineLogger:
 
 class DailyQueueManager:
     @staticmethod
-    def get_next_partition():
+    def get_next_partition(batch_size=1):
         if not os.path.exists(URL_LIST_FILE):
             ts_print(f"❌ ERROR: {URL_LIST_FILE} not found.")
             return [], 0, 0
         with open(URL_LIST_FILE, "r") as f:
             urls = [line.strip() for line in f if line.strip()]
+        
+        if not urls:
+            return [], 0, 0
+
         state = {"current_index": 0}
         if os.path.exists(STATE_FILE):
             try:
@@ -103,18 +107,29 @@ class DailyQueueManager:
                     state = json.load(f)
             except:
                 pass
-        idx = state.get("current_index", 0)
-        if idx >= len(urls):
-            idx = 0
-        target_url = urls[idx]
-        return [target_url], idx + 1, len(urls)
+        
+        start_idx = state.get("current_index", 0)
+        if start_idx >= len(urls):
+            start_idx = 0
+            
+        target_urls = []
+        # Fetch 'batch_size' URLs, wrapping around if necessary
+        for i in range(batch_size):
+            curr = (start_idx + i) % len(urls)
+            target_urls.append(urls[curr])
+
+        return target_urls, start_idx + 1, len(urls)
 
     @staticmethod
-    def increment_state():
+    def increment_state(batch_size=1):
         if not os.path.exists(URL_LIST_FILE):
             return
         with open(URL_LIST_FILE, "r") as f:
             urls = [line.strip() for line in f if line.strip()]
+        
+        if not urls:
+            return
+
         state = {"current_index": 0}
         if os.path.exists(STATE_FILE):
             try:
@@ -122,7 +137,10 @@ class DailyQueueManager:
                     state = json.load(f)
             except:
                 pass
-        state["current_index"] = (state.get("current_index", 0) + 1) % len(urls)
+        
+        # Advance index by batch_size, wrapping modulo length of list
+        state["current_index"] = (state.get("current_index", 0) + batch_size) % len(urls)
+        
         with open(STATE_FILE, "w") as f:
             json.dump(state, f)
 
@@ -131,10 +149,11 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 class P4NScraper:
-    def __init__(self, is_dev=False, force=False, single_url=None):
+    def __init__(self, is_dev=False, force=False, single_url=None, batch_size=1):
         self.is_dev = is_dev
         self.force = force
         self.single_url = single_url
+        self.batch_size = batch_size
         self.csv_file = DEV_CSV if is_dev else PROD_CSV
         self.processed_batch = []
         self.existing_df = self._load_existing()
@@ -447,14 +466,14 @@ class P4NScraper:
                 current_idx, total_idx = 1, 1
             else:
                 target_urls, current_idx, total_idx = (
-                    DailyQueueManager.get_next_partition()
+                    DailyQueueManager.get_next_partition(self.batch_size)
                 )
 
             ts_print("=" * 60)
             ts_print(
-                f"🔍 [SEARCH PAGE] Scraping: {target_urls[0] if target_urls else 'N/A'}"
+                f"🔍 [SEARCH PAGE] Scraping {len(target_urls)} items starting from: {target_urls[0] if target_urls else 'N/A'}"
             )
-            ts_print(f"📅 [PARTITION] Day {current_idx} of {total_idx}")
+            ts_print(f"📅 [PARTITION] Starting index {current_idx} of {total_idx}")
             ts_print("=" * 60)
 
             if self.single_url:
@@ -553,7 +572,7 @@ class P4NScraper:
             ts_print("=" * 40)
 
             if not self.is_dev and not self.single_url:
-                DailyQueueManager.increment_state()
+                DailyQueueManager.increment_state(self.batch_size)
 
     def _upsert_and_save(self):
         if not self.processed_batch:
@@ -656,6 +675,12 @@ if __name__ == "__main__":
         default=None,
         help="Crawl a specific location URL (overrides daily queue)",
     )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=1,
+        help="Number of URLs to process from the queue"
+    )
     args = parser.parse_args()
     url_arg = None
     if args.url:
@@ -666,5 +691,10 @@ if __name__ == "__main__":
             url_arg = url_arg[1:-1]
 
     asyncio.run(
-        P4NScraper(is_dev=args.dev, force=args.force, single_url=url_arg).start()
+        P4NScraper(
+            is_dev=args.dev, 
+            force=args.force, 
+            single_url=url_arg, 
+            batch_size=args.batch_size
+        ).start()
     )
