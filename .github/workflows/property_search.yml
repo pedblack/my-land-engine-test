@@ -1,4 +1,4 @@
-name: Daily Land Search & Map
+name: Property Search
 
 on:
   schedule:
