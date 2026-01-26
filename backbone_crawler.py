@@ -40,8 +40,7 @@ P4N_PASS = os.environ.get("P4N_PASSWORD")
 
 def ts_print(msg):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {msg}")
-
+    print(f"[{timestamp}] {msg}", flush=True)
 
 def is_review_within_years(date_str, years=REVIEW_YEARS):
     """Check if review date is within the last N years. Date format: YYYY-MM-DD"""
