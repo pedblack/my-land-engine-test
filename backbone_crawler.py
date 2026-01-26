@@ -22,6 +22,7 @@ DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
 CONCURRENCY_LIMIT = 3
 MAX_GEMINI_RETRIES = 3
+TAXONOMY_FILE = "taxonomy.json" # Source of truth for tags
 
 AI_DELAY = 1.0
 STALENESS_DAYS = 30
@@ -163,6 +164,16 @@ class P4NScraper:
         else:
             self.stats["gemini_lite_calls"] += 1
 
+        # Load dynamic taxonomy from JSON file
+        try:
+            with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
+                tax_data = json.load(f)
+                pro_keys_str = ", ".join(tax_data.get("pros", []))
+                con_keys_str = ", ".join(tax_data.get("cons", []))
+        except Exception as e:
+            ts_print(f"❌ FAILED TO LOAD TAXONOMY: {e}")
+            return {}
+
         num_reviews = len(raw_data.get("all_reviews", []))
         json_payload = json.dumps(raw_data, default=str, ensure_ascii=False)
 
@@ -170,28 +181,28 @@ class P4NScraper:
             "SENT_TO_GEMINI", {"payload": raw_data, "model": model_name}
         )
 
-        system_instruction = """Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
+        system_instruction = f"""Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
 
         ### TAXONOMY (Strictly Use ONLY these keys) ###
         
         PRO_KEYS:
-        - atmosphere_quiet_peaceful, scenery_natural_beauty, views_sunset_starry_sky, staff_friendly_helpful, service_multilingual_welcoming, tips_local_knowledge, facilities_clean_modern, showers_hot_high_pressure, laundry_effective_available, pitches_spacious_private, ground_flat_level_paved, shade_natural_provided, value_affordable_fair, discounts_accepted_acsi, pricing_transparent_simple, location_beach_water_access, location_town_center_proximity, location_nature_trails_access, supplies_nearby_shops_fuel, services_bread_delivery_onsite, catering_bar_restaurant_onsite, utilities_reliable_electricity, water_potable_easy_refill, waste_disposal_functional, connectivity_strong_wifi, connectivity_good_5g_mobile, safety_secure_fenced_monitored, safety_feeling_safe_community, pet_friendly_amenities, family_child_friendly_playground, access_easy_large_vehicles, checkin_automated_flexible_process, activities_onsite_yoga_pool, unique_vibe_creative_eco_farm, utilities_lpg_gpl_specialist, activities_farm_eco_interaction, heritage_culture_history, misc_other_pros
+        - {pro_keys_str}
         
         CON_KEYS:
-        - noise_traffic_airplane_loud, noise_dogs_animals_neighbors, noise_events_music_parties, cleanliness_dirty_unkept, facilities_broken_outdated, showers_cold_low_pressure, terrain_uneven_sloping, terrain_muddy_dusty_flooding, shade_lack_of_exposed, access_difficult_narrow_steep, maneuvering_tight_spaces_restrictions, overcrowding_packed_residents, space_cramped_lack_of_privacy, price_expensive_overpriced, payment_issues_cash_only_friction, service_lack_of_amenities, service_staff_rude_unfriendly, checkin_rules_restrictive_slow, wifi_poor_unreliable_signal, mobile_signal_weak_dead_zone, safety_theft_risk_loitering, safety_police_fines_eviction_risk, environment_pests_insects_smells, environment_litter_trash_accumulation, utilities_electricity_tripping, utilities_water_nonpotable_slow, signage_unclear_directions, location_remote_isolated_far, rules_strict_fussy_unpleasant, environment_radiation_emf, social_niche_demographic, situational_temporary_blockage, misc_other_cons
+        - {con_keys_str}
         
         ### JSON SCHEMA ###
-        {
+        {{
             "num_places": int,
             "parking_min": float,
             "parking_max": float,
             "electricity_eur": float,
-            "top_languages": [ {"lang": "string", "count": int} ],
-            "pros_cons": {
-                "pros": [ {"topic": "string", "count": int} ],
-                "cons": [ {"topic": "string", "count": int} ]
-            }
-        }
+            "top_languages": [ {{"lang": "string", "count": int}} ],
+            "pros_cons": {{
+                "pros": [ {{"topic": "string", "count": int}} ],
+                "cons": [ {{"topic": "string", "count": int}} ]
+            }}
+        }}
         
         ### INSTRUCTIONS ###
         1. num_places: Extract from 'places_count' field. Use null if not found.
@@ -235,15 +246,6 @@ class P4NScraper:
                 if (is_json_error or is_transient) and attempt < MAX_GEMINI_RETRIES - 1:
                     ts_print(f"🔄 [RETRY {attempt+1}/{MAX_GEMINI_RETRIES}] {type(e).__name__} for {url}. Retrying...")
                     continue
-
-                # Final Failure Logic
-                try:
-                    token_count_resp = await client.aio.models.count_tokens(
-                        model=model_name, contents=f"ANALYZE:\n{json_payload}"
-                    )
-                    tokens = token_count_resp.total_tokens
-                except:
-                    tokens = "Unknown"
 
                 ts_print(f"❌ [GEMINI ERROR] URL: {url} | Error: {e}")
                 PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e), "model": model_name})
@@ -448,9 +450,6 @@ class P4NScraper:
             ts_print(f"📅 [PARTITION] Day {current_idx} of {total_idx}")
             ts_print("=" * 60)
 
-            # If a single URL was provided, treat it as the exact place to crawl
-            # and skip discovery of additional linked place entries. This avoids
-            # crawling other locale variants or related places found on the page.
             if self.single_url:
                 discovered = [self.single_url]
             else:
@@ -512,9 +511,6 @@ class P4NScraper:
                 else:
                     ts_print(f"⏩  [SKIP] Listing fresh: {link}")
                     self.stats["discarded_fresh"] += 1
-            # Run tasks and ensure we always attempt to save whatever we've
-            # processed so far. Errors are logged but do not prevent the
-            # fallback save in the finally block.
             try:
                 if tasks:
                     await asyncio.gather(*tasks)
@@ -553,16 +549,12 @@ class P4NScraper:
                 DailyQueueManager.increment_state()
 
     def _upsert_and_save(self):
-        # Try to safely upsert and save the processed_batch. If anything goes
-        # wrong we fall back to appending the new rows to the CSV so we never
-        # lose already-crawled items.
         if not self.processed_batch:
             return
 
         try:
             new_df = pd.DataFrame(self.processed_batch)
 
-            # Normalize and clean p4n_id in new data
             if "p4n_id" in new_df.columns:
                 new_df["p4n_id"] = (
                     new_df["p4n_id"].astype(str).str.strip().replace("nan", "")
@@ -570,7 +562,6 @@ class P4NScraper:
             else:
                 new_df["p4n_id"] = ""
 
-            # Normalize last_scraped to datetime for new data
             if "last_scraped" in new_df.columns:
                 new_df["last_scraped"] = pd.to_datetime(
                     new_df["last_scraped"], errors="coerce"
@@ -578,7 +569,6 @@ class P4NScraper:
             else:
                 new_df["last_scraped"] = pd.NaT
 
-            # Drop rows with empty p4n_id to avoid creating meaningless duplicates
             new_df = new_df[new_df["p4n_id"].astype(bool)].copy()
 
             existing = (
@@ -588,7 +578,6 @@ class P4NScraper:
             )
 
             if not existing.empty:
-                # Coerce and clean existing p4n_id to string so dedupe works across types
                 if "p4n_id" in existing.columns:
                     existing["p4n_id"] = (
                         existing["p4n_id"].astype(str).str.strip().replace("nan", "")
@@ -596,7 +585,6 @@ class P4NScraper:
                 else:
                     existing["p4n_id"] = ""
 
-                # Normalize last_scraped in existing data
                 if "last_scraped" in existing.columns:
                     existing["last_scraped"] = pd.to_datetime(
                         existing["last_scraped"], errors="coerce"
@@ -604,49 +592,39 @@ class P4NScraper:
                 else:
                     existing["last_scraped"] = pd.NaT
 
-                # Drop rows with empty p4n_id in existing data as well
                 existing = existing[existing["p4n_id"].astype(bool)].copy()
 
-            # Mark source so we can prioritize new rows over existing ones
             if not new_df.empty:
                 new_df["_is_new"] = True
             if not existing.empty:
                 existing["_is_new"] = False
 
-            # Concatenate with new rows first so drop_duplicates keeps them
             final_df = pd.concat([new_df, existing], ignore_index=True, sort=False)
 
-            # Ensure last_scraped is datetime on the combined frame
             if "last_scraped" in final_df.columns:
                 final_df["last_scraped"] = pd.to_datetime(
                     final_df["last_scraped"], errors="coerce"
                 )
 
-            # Drop duplicates by p4n_id keeping the first occurrence (new rows win)
             if "p4n_id" in final_df.columns:
                 final_df = final_df.drop_duplicates(subset=["p4n_id"], keep="first")
 
-            # Remove helper column if present
             if "_is_new" in final_df.columns:
                 final_df = final_df.drop(columns=["_is_new"])
 
-            # Persist
             final_df.to_csv(self.csv_file, index=False)
 
         except Exception as e:
-            # Log the error and attempt a best-effort append of new rows.
             PipelineLogger.log_event("UPSERT_SAVE_ERROR", {"error": str(e)})
             ts_print(f"⚠️ Saving error: {e}. Attempting fallback append to CSV.")
 
             try:
                 fallback_df = pd.DataFrame(self.processed_batch)
-                # Convert potentially-problematic columns to safe types
                 if "last_scraped" in fallback_df.columns:
                     fallback_df["last_scraped"] = fallback_df["last_scraped"].astype(
                         str
                     )
 
-                # If file exists, append without header; otherwise create new file
                 if os.path.exists(self.csv_file):
                     fallback_df.to_csv(
                         self.csv_file, mode="a", index=False, header=False
@@ -672,7 +650,6 @@ if __name__ == "__main__":
         help="Crawl a specific location URL (overrides daily queue)",
     )
     args = parser.parse_args()
-    # Normalize URL input: strip surrounding single/double quotes if present
     url_arg = None
     if args.url:
         url_arg = args.url.strip()
