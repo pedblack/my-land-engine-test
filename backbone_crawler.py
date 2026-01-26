@@ -225,7 +225,8 @@ class P4NScraper:
             "top_languages": [ {{"lang": "string", "count": int}} ],
             "pros_cons": {{
                 "pros": [ {{"topic": "string", "count": int}} ],
-                "cons": [ {{"topic": "string", "count": int}} ]
+                "cons": [ {{"topic": "string", "count": int}} ],
+                "unmapped_feedback": [ "string" ]
             }}
         }}
         
@@ -233,7 +234,7 @@ class P4NScraper:
         1. num_places: Extract from 'places_count' field. Use null if not found.
         2. Pricing: Extract min/max range. If electricity is included in parking fee, set electricity_eur to 0.0.
         3. Themes: Map review comments to the closest matching key in the TAXONOMY.
-        4. Handling Misc: If a review point does not fit any specific category, map it to 'misc_other_pros' or 'misc_other_cons' accordingly. Do not ignore any feedback.
+        4. Handling Outliers: If a review point clearly fits a TAXONOMY key, map it there. If a point is DISTINCT and does not fit any key, DO NOT use a taxonomy key. Instead, add the raw short text of that point to the 'unmapped_feedback' list.
         5. Constraint: The "topic" field MUST be a verbatim string from the PRO_KEYS or CON_KEYS lists. Do not create your own keys.
         6. Output: Return ONLY the raw JSON object. No preamble, no markdown backticks."""
 
