@@ -101,7 +101,7 @@ class TaxonomyDiscoverer:
 
     async def run(self):
         if not os.path.exists(URL_LIST_FILE):
-            ts_print("❌ No url_list.txt found.")
+            ts_print(f"❌ ERROR: {URL_LIST_FILE} not found.")
             return
 
         with open(URL_LIST_FILE, "r") as f:
@@ -112,29 +112,49 @@ class TaxonomyDiscoverer:
             context = await browser.new_context()
             await Stealth().apply_stealth_async(context)
             
-            # Step 1: Discover Property URLs from Search Pages
-            property_urls = []
-            discovery_page = await context.new_page()
-            for s_url in search_urls:
-                ts_print(f"🔍 Finding properties on search page: {s_url}")
+            discovery_links = []
+            page = await context.new_page()
+            
+            for url in search_urls:
+                ts_print(f"🔍 [SEARCH PAGE] Finding properties on: {url}")
                 try:
-                    await discovery_page.goto(s_url, wait_until="domcontentloaded")
-                    links = await discovery_page.locator("a[href*='/place/']").all()
+                    # EXACT METHODOLOGY FROM MAIN SCRIPT
+                    await page.goto(url, wait_until="domcontentloaded")
+                    try:
+                        # Wait for the specific selector used in backbone_crawler.py
+                        await page.wait_for_selector("a[href*='/place/']", timeout=5000)
+                    except:
+                        ts_print(f"⚠️ No place links found on {url}")
+                        pass
+                    
+                    # Extract links exactly as the main script does
+                    links = await page.locator("a[href*='/place/']").all()
                     for link in links:
                         href = await link.get_attribute("href")
                         if href:
-                            full_url = f"https://park4night.com{href}" if href.startswith("/") else href
-                            property_urls.append(full_url)
+                            discovery_links.append(
+                                f"https://park4night.com{href}"
+                                if href.startswith("/")
+                                else href
+                            )
                 except Exception as e:
-                    ts_print(f"⚠️ Search page error: {e}")
-            await discovery_page.close()
+                    ts_print(f"⚠️ Search page error for {url}: {e}")
 
-            property_urls = list(set(property_urls))[:15] 
-            ts_print(f"✅ Found {len(property_urls)} properties. Starting review extraction...")
+            # Deduplicate as per main script
+            discovered = list(set(discovery_links))
+            await page.close()
 
-            # Step 2: Scrape and Analyze
-            for i in range(0, len(property_urls), BATCH_SIZE):
-                batch_urls = property_urls[i:i + BATCH_SIZE]
+            if not discovered:
+                ts_print("❌ Still found 0 properties. Please check if search pages are active.")
+                await browser.close()
+                return
+
+            ts_print(f"✅ Found {len(discovered)} properties. Limiting to first 15 for taxonomy audit.")
+            target_sample = discovered[:15]
+
+            # Step 2: Scrape and Analyze in Batches
+            for i in range(0, len(target_sample), BATCH_SIZE):
+                batch_urls = target_sample[i:i + BATCH_SIZE]
                 scrape_tasks = [self.scrape_url(context, u) for u in batch_urls]
                 batch_results = await asyncio.gather(*scrape_tasks)
                 
@@ -143,10 +163,11 @@ class TaxonomyDiscoverer:
 
             await browser.close()
 
-        # Save final report
+        # Save results
         with open(OUTPUT_FILE, "w") as f:
             json.dump({
                 "discovery_timestamp": datetime.now().isoformat(),
+                "total_suggestions": len(self.suggested_keys),
                 "suggestions": self.suggested_keys
             }, f, indent=4)
         
