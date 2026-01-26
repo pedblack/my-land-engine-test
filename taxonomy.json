@@ -179,6 +179,26 @@
     {
       "topic": "misc_other_pros",
       "description": "Positive feedback that does not fit into specific categories."
+    },
+    {
+      "topic": "activity_wine_tasting_vineyard",
+      "description": "Opportunity to participate in wine tastings, tours, or stay directly within a vineyard."
+    },
+    {
+      "topic": "facilities_eco_rustic_amenities",
+      "description": "Presence of ecological facilities such as dry/compost toilets and outdoor solar showers."
+    },
+    {
+      "topic": "atmosphere_nature_sounds_wildlife",
+      "description": "Audible presence of nature such as frogs, birds, or other wildlife (often cited as a positive immersive experience)."
+    },
+    {
+      "topic": "facilities_vehicle_wash",
+      "description": "On-site equipment available for washing the vehicle or bicycles."
+    },
+    {
+      "topic": "impact_tree_planting_donation",
+      "description": "Stay fee includes an ecological contribution, such as planting a tree."
     }
   ],
   "cons": [
@@ -353,6 +373,34 @@
     {
       "topic": "misc_other_cons",
       "description": "Negative feedback that does not fit specific categories."
+    },
+    {
+      "topic": "access_long_unpaved_road",
+      "description": "Access requires driving a significant distance on gravel, dirt, or washboard tracks (risk for standard suspensions).",
+    },
+    {
+      "topic": "facilities_sanitary_limited_hours",
+      "description": "Toilets or showers are available but locked/closed during the night or winter season."
+    },
+    {
+      "topic": "status_permanently_closed_or_removed",
+      "description": "Feedback indicates the location no longer exists, is permanently blocked, or has been removed."
+    },
+    {
+      "topic": "access_4wd_high_clearance_required",
+      "description": "Terrain requires a four-wheel drive vehicle or high ground clearance to navigate safely."
+    },
+    {
+      "topic": "water_bad_taste_chlorine",
+      "description": "Potable water is safe but has a strong unpleasant taste of chlorine, bleach, or iron."
+    },
+    {
+      "topic": "rules_highway_toll_time_limit",
+      "description": "Parking is located on a toll road with a maximum stay limit (e.g., 12h) before heavy fines apply."
+    },
+    {
+      "topic": "access_app_booking_mandatory",
+      "description": "Entry is barred by a gate that requires downloading a specific app to book and open."
     }
   ]
 }
