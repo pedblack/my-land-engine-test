@@ -6,11 +6,13 @@ import numpy as np
 import pandas as pd
 
 # Use environment variables to support both prod and dev modes
-CSV_FILE = os.environ.get("CSV_FILE", "backbone_locations.csv")
-STRATEGIC_FILE = "strategic_analysis.json"
 
 
 def generate_map(output_file="index.html"):
+    # Use environment variables to support both prod and dev modes
+    CSV_FILE = os.environ.get("CSV_FILE", "backbone_locations.csv")
+    STRATEGIC_FILE = os.environ.get("STRATEGIC_FILE", "strategic_analysis.json")
+
     if not os.path.exists(CSV_FILE):
         print(f"❌ {CSV_FILE} not found.")
         return
