@@ -12,9 +12,9 @@ from playwright_stealth import Stealth
 # --- CONFIG ---
 DISCOVERY_MODEL = "gemini-2.5-flash"
 URL_LIST_FILE = "url_list.txt"
-PROMPT_FILE = "extraction_prompt.txt" # Externalized prompt file
+TAXONOMY_FILE = "taxonomy.json"  # New source of truth
 OUTPUT_FILE = "taxonomy_discovery_report.json"
-BATCH_SIZE = 5 # Increased for better pattern recognition
+BATCH_SIZE = 5 
 
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -23,10 +23,13 @@ def ts_print(msg):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
 def load_current_taxonomy():
-    """Reads the current taxonomy from your production prompt file."""
-    if os.path.exists(PROMPT_FILE):
-        with open(PROMPT_FILE, "r", encoding="utf-8") as f:
-            return f.read()
+    """Reads the current taxonomy from the JSON file and formats it for the AI."""
+    if os.path.exists(TAXONOMY_FILE):
+        with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            pro_keys = ", ".join(data.get("pros", []))
+            con_keys = ", ".join(data.get("cons", []))
+            return f"PRO_KEYS: {pro_keys}\nCON_KEYS: {con_keys}"
     return "No current taxonomy found."
 
 class TaxonomyDiscoverer:
@@ -39,7 +42,6 @@ class TaxonomyDiscoverer:
         reviews = []
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            # Wait for reviews to actually exist on the page
             await page.wait_for_selector(".place-feedback-article", timeout=10000)
             
             elements = await page.locator(".place-feedback-article-content").all()
@@ -53,7 +55,6 @@ class TaxonomyDiscoverer:
         return {"url": url, "reviews": reviews}
 
     async def analyze_batch(self, batch_data):
-        # Filter out properties with zero reviews before sending to AI
         valid_data = [d for d in batch_data if d['reviews']]
         if not valid_data:
             return {"new_suggestions": []}
@@ -66,7 +67,7 @@ class TaxonomyDiscoverer:
         I am providing reviews for camping locations. 
         Your goal is to find themes that DO NOT fit into my current taxonomy.
 
-        ### MY CURRENT TAXONOMY AND INSTRUCTIONS ###
+        ### MY CURRENT TAXONOMY ###
         {current_taxonomy}
 
         ### TASK ###
@@ -118,16 +119,13 @@ class TaxonomyDiscoverer:
             for url in search_urls:
                 ts_print(f"🔍 [SEARCH PAGE] Finding properties on: {url}")
                 try:
-                    # EXACT METHODOLOGY FROM MAIN SCRIPT
                     await page.goto(url, wait_until="domcontentloaded")
                     try:
-                        # Wait for the specific selector used in backbone_crawler.py
                         await page.wait_for_selector("a[href*='/place/']", timeout=5000)
                     except:
                         ts_print(f"⚠️ No place links found on {url}")
                         pass
                     
-                    # Extract links exactly as the main script does
                     links = await page.locator("a[href*='/place/']").all()
                     for link in links:
                         href = await link.get_attribute("href")
@@ -140,7 +138,6 @@ class TaxonomyDiscoverer:
                 except Exception as e:
                     ts_print(f"⚠️ Search page error for {url}: {e}")
 
-            # Deduplicate as per main script
             discovered = list(set(discovery_links))
             await page.close()
 
@@ -149,10 +146,9 @@ class TaxonomyDiscoverer:
                 await browser.close()
                 return
 
-            ts_print(f"✅ Found {len(discovered)} properties. Limiting to first 15 for taxonomy audit.")
-            target_sample = discovered[:15]
+            ts_print(f"✅ Found {len(discovered)} properties. Limiting to first 50 for taxonomy audit.")
+            target_sample = discovered[:50]
 
-            # Step 2: Scrape and Analyze in Batches
             for i in range(0, len(target_sample), BATCH_SIZE):
                 batch_urls = target_sample[i:i + BATCH_SIZE]
                 scrape_tasks = [self.scrape_url(context, u) for u in batch_urls]
@@ -163,7 +159,6 @@ class TaxonomyDiscoverer:
 
             await browser.close()
 
-        # Save results
         with open(OUTPUT_FILE, "w") as f:
             json.dump({
                 "discovery_timestamp": datetime.now().isoformat(),
