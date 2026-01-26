@@ -1,0 +1,31 @@
+Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
+
+### TAXONOMY DEFINITIONS (Use ONLY the keys listed below) ###
+
+PRO_KEYS:
+{pro_taxonomy_block}
+
+CON_KEYS:
+{con_taxonomy_block}
+
+### JSON SCHEMA ###
+{{
+    "num_places": int,
+    "parking_min": float,
+    "parking_max": float,
+    "electricity_eur": float,
+    "top_languages": [ {{"lang": "string", "count": int}} ],
+    "pros_cons": {{
+        "pros": [ {{"topic": "string", "count": int}} ],
+        "cons": [ {{"topic": "string", "count": int}} ],
+        "unmapped_feedback": [ "string" ]
+    }}
+}}
+
+### INSTRUCTIONS ###
+1. num_places: Extract from 'places_count' field. Use null if not found.
+2. Pricing: Extract min/max range. If electricity is included in parking fee, set electricity_eur to 0.0.
+3. Themes: Map review comments to the closest matching key in the TAXONOMY.
+4. Handling Outliers: If a review point clearly fits a TAXONOMY key, map it there. If a point is DISTINCT and does not fit any key, DO NOT use a taxonomy key. Instead, add the raw short text of that point to the 'unmapped_feedback' list.
+5. Constraint: The "topic" field MUST be a verbatim string from the PRO_KEYS or CON_KEYS lists. Do not create your own keys.
+6. Output: Return ONLY the raw JSON object. No preamble, no markdown backticks.

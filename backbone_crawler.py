@@ -22,7 +22,8 @@ DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
 CONCURRENCY_LIMIT = 3
 MAX_GEMINI_RETRIES = 3
-TAXONOMY_FILE = "taxonomy.json" # Source of truth for tags
+TAXONOMY_FILE = "taxonomy.json"  # Source of truth for tags
+LLM_PROMPT_FILE = "llm_prompt.txt"  # File containing the LLM prompt
 
 AI_DELAY = 1.0
 STALENESS_DAYS = 30
@@ -41,6 +42,7 @@ P4N_PASS = os.environ.get("P4N_PASSWORD")
 def ts_print(msg):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {msg}", flush=True)
+
 
 def is_review_within_years(date_str, years=REVIEW_YEARS):
     """Check if review date is within the last N years. Date format: YYYY-MM-DD"""
@@ -95,7 +97,7 @@ class DailyQueueManager:
             return [], 0, 0
         with open(URL_LIST_FILE, "r") as f:
             urls = [line.strip() for line in f if line.strip()]
-        
+
         if not urls:
             return [], 0, 0
 
@@ -106,11 +108,11 @@ class DailyQueueManager:
                     state = json.load(f)
             except:
                 pass
-        
+
         start_idx = state.get("current_index", 0)
         if start_idx >= len(urls):
             start_idx = 0
-            
+
         target_urls = []
         # Fetch 'batch_size' URLs, wrapping around if necessary
         for i in range(batch_size):
@@ -125,7 +127,7 @@ class DailyQueueManager:
             return
         with open(URL_LIST_FILE, "r") as f:
             urls = [line.strip() for line in f if line.strip()]
-        
+
         if not urls:
             return
 
@@ -136,10 +138,12 @@ class DailyQueueManager:
                     state = json.load(f)
             except:
                 pass
-        
+
         # Advance index by batch_size, wrapping modulo length of list
-        state["current_index"] = (state.get("current_index", 0) + batch_size) % len(urls)
-        
+        state["current_index"] = (state.get("current_index", 0) + batch_size) % len(
+            urls
+        )
+
         with open(STATE_FILE, "w") as f:
             json.dump(state, f)
 
@@ -186,17 +190,31 @@ class P4NScraper:
         try:
             with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
                 tax_data = json.load(f)
-                
+
                 # Format each entry as "topic: description" for better AI context
-                pro_list = [f"- {item['topic']}: {item['description']}" 
-                            for item in tax_data.get("pros", []) if isinstance(item, dict)]
-                con_list = [f"- {item['topic']}: {item['description']}" 
-                            for item in tax_data.get("cons", []) if isinstance(item, dict)]
-                
+                pro_list = [
+                    f"- {item['topic']}: {item['description']}"
+                    for item in tax_data.get("pros", [])
+                    if isinstance(item, dict)
+                ]
+                con_list = [
+                    f"- {item['topic']}: {item['description']}"
+                    for item in tax_data.get("cons", [])
+                    if isinstance(item, dict)
+                ]
+
                 pro_taxonomy_block = "\n".join(pro_list)
                 con_taxonomy_block = "\n".join(con_list)
+
+            with open(LLM_PROMPT_FILE, "r", encoding="utf-8") as f:
+                system_instruction_template = f.read()
+
+            system_instruction = system_instruction_template.format(
+                pro_taxonomy_block=pro_taxonomy_block,
+                con_taxonomy_block=con_taxonomy_block,
+            )
         except Exception as e:
-            ts_print(f"❌ FAILED TO LOAD TAXONOMY: {e}")
+            ts_print(f"❌ FAILED TO LOAD TAXONOMY OR PROMPT: {e}")
             return {}
 
         num_reviews = len(raw_data.get("all_reviews", []))
@@ -205,38 +223,6 @@ class P4NScraper:
         PipelineLogger.log_event(
             "SENT_TO_GEMINI", {"payload": raw_data, "model": model_name}
         )
-
-        system_instruction = f"""Analyze the provided property data and reviews. You MUST identify recurring themes and count their occurrences across all reviews. Return JSON ONLY. Use snake_case.
-
-        ### TAXONOMY DEFINITIONS (Use ONLY the keys listed below) ###
-        
-        PRO_KEYS:
-        {pro_taxonomy_block}
-        
-        CON_KEYS:
-        {con_taxonomy_block}
-        
-        ### JSON SCHEMA ###
-        {{
-            "num_places": int,
-            "parking_min": float,
-            "parking_max": float,
-            "electricity_eur": float,
-            "top_languages": [ {{"lang": "string", "count": int}} ],
-            "pros_cons": {{
-                "pros": [ {{"topic": "string", "count": int}} ],
-                "cons": [ {{"topic": "string", "count": int}} ],
-                "unmapped_feedback": [ "string" ]
-            }}
-        }}
-        
-        ### INSTRUCTIONS ###
-        1. num_places: Extract from 'places_count' field. Use null if not found.
-        2. Pricing: Extract min/max range. If electricity is included in parking fee, set electricity_eur to 0.0.
-        3. Themes: Map review comments to the closest matching key in the TAXONOMY.
-        4. Handling Outliers: If a review point clearly fits a TAXONOMY key, map it there. If a point is DISTINCT and does not fit any key, DO NOT use a taxonomy key. Instead, add the raw short text of that point to the 'unmapped_feedback' list.
-        5. Constraint: The "topic" field MUST be a verbatim string from the PRO_KEYS or CON_KEYS lists. Do not create your own keys.
-        6. Output: Return ONLY the raw JSON object. No preamble, no markdown backticks."""
 
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -257,7 +243,7 @@ class P4NScraper:
                 # Attempt to parse JSON immediately inside the try block
                 clean_text = re.sub(r"```json\s*|\s*```", "", response.text).strip()
                 ai_json = json.loads(clean_text)
-                
+
                 PipelineLogger.log_event(
                     "GEMINI_ANSWER", {"model": model_name, "response": ai_json}
                 )
@@ -267,14 +253,20 @@ class P4NScraper:
                 # Force retry for JSON errors OR transient API errors
                 is_json_error = isinstance(e, json.JSONDecodeError)
                 err_msg = str(e).lower()
-                is_transient = "503" in err_msg or "overloaded" in err_msg or "deadline" in err_msg
+                is_transient = (
+                    "503" in err_msg or "overloaded" in err_msg or "deadline" in err_msg
+                )
 
                 if (is_json_error or is_transient) and attempt < MAX_GEMINI_RETRIES - 1:
-                    ts_print(f"🔄 [RETRY {attempt+1}/{MAX_GEMINI_RETRIES}] {type(e).__name__} for {url}. Retrying...")
+                    ts_print(
+                        f"🔄 [RETRY {attempt+1}/{MAX_GEMINI_RETRIES}] {type(e).__name__} for {url}. Retrying..."
+                    )
                     continue
 
                 ts_print(f"❌ [GEMINI ERROR] URL: {url} | Error: {e}")
-                PipelineLogger.log_event("GEMINI_ERROR", {"error": str(e), "model": model_name})
+                PipelineLogger.log_event(
+                    "GEMINI_ERROR", {"error": str(e), "model": model_name}
+                )
                 self.stats["gemini_errors"] += 1
                 return {}
 
@@ -679,7 +671,7 @@ if __name__ == "__main__":
         "--batch_size",
         type=int,
         default=1,
-        help="Number of URLs to process from the queue"
+        help="Number of URLs to process from the queue",
     )
     args = parser.parse_args()
     url_arg = None
@@ -692,9 +684,9 @@ if __name__ == "__main__":
 
     asyncio.run(
         P4NScraper(
-            is_dev=args.dev, 
-            force=args.force, 
-            single_url=url_arg, 
-            batch_size=args.batch_size
+            is_dev=args.dev,
+            force=args.force,
+            single_url=url_arg,
+            batch_size=args.batch_size,
         ).start()
     )
