@@ -1,0 +1,1538 @@
+[
+    {
+      "review": "[2025-09-11]: Petit camping accueillant et agréable avec des emplacements spacieux, tous services à disposition. (Nous n’évaluons pas les sanitaires que nous n’utilisons pas) Commerces à proximité. Prix très raisonnable.",
+      "pros": [
+        "misc_general_positive_sentiment",
+        "pitches_spacious_private",
+        "waste_disposal_functional",
+        "supplies_nearby_shops_fuel",
+        "value_affordable_fair"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2024-02-05]: Amazing shower. Good pressure, clean and hot throughout. Open in winter, free of charge.",
+      "pros": [
+        "showers_hot_high_pressure",
+        "facilities_clean_modern",
+        "value_affordable_fair"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2024-05-08]: ASA com boas condições e com os serviços disponíveis funcionais.\n\nApesar dos espaços reservados para as autocaravanas (5), por vezes estarem ocupados, existem outros espaços disponíveis.\n\nObrigado à Câmara de Grândola!",
+      "pros": [
+        "misc_general_positive_sentiment",
+        "waste_disposal_functional",
+        "municipal_support_pro"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2024-07-14]: Precioso, tranquilo y bastante nivelado. No le pongo las 5 estrellas porque las plazas son en batería. Con la AC de 7.5m hemos dormido en una de las 5 plazas de autobús que hay. Cuidado con los mosquitos al anochecer, hay que dormir con todo cerrado.",
+      "pros": [
+        "scenery_natural_beauty",
+        "atmosphere_quiet_peaceful",
+        "terrain_level_flat"
+      ],
+      "cons": [
+        "space_cramped_design_issue",
+        "environment_pests_insects_smells"
+      ]
+    },
+    {
+      "review": "[2025-01-03]: Wir haben eine ruhige Nacht verbcht, schönen Dank für die Bereitstellung der 3 Plätze. Beim Intermarche haben wir gewaschen Rumtreiber)JB",
+      "pros": [
+        "atmosphere_quiet_peaceful",
+        "supplies_nearby_shops_fuel",
+        "municipal_support_pro"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2025-04-02]: Places sur herbe. Très calme.",
+      "pros": [
+        "atmosphere_quiet_peaceful"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2024-05-13]: Coup de coeur pour la PachaMama Community !Un havre de paix où la bienveillance est au RDV ! De jolis emplacements, toutes les commodités et bien plus encore ! Samedi soir c’était pizza pour 10€ et cocktails ! De nombreux animaux, des oeufs frais, un potager, un canal pour la baignade ! Yoga tous les matins avec Hanna. Un shop avec de l’artisanat proposé par différents membres. Merci, au plaisir❤️",
+      "pros": [
+        "unique_vibe_creative_eco",
+        "atmosphere_quiet_peaceful",
+        "staff_friendly_helpful",
+        "catering_bar_restaurant_onsite",
+        "activities_farm_eco_interaction",
+        "location_beach_water_access",
+        "activities_onsite_yoga_pool",
+        "local_product_purchase_opportunity"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2024-04-21]: Potenzial für 5*, aber aufgrund des angetroffenen Nutzerverhaltens \"nur\" 4* (der Stellplatz kann ja eigentlich nichts für rücksichtslose \"Camper\"). Wir sind trotz eines freien Stellplatzes (kopfschüttelnd und schimpfend) weitergefahren.",
+      "pros": [
+        "misc_general_positive_sentiment"
+      ],
+      "cons": [
+        "social_inconsiderate_behavior"
+      ]
+    },
+    {
+      "review": "[2025-03-01]: Ruhiger guter Stellplatz",
+      "pros": [
+        "atmosphere_quiet_peaceful",
+        "misc_general_positive_sentiment"
+      ],
+      "cons": []
+    },
+    {
+      "review": "[2026-01-13]: Merci pour le savoir vivre des camping caristes qui occupent 5 emplacement à trois. !!!!\nSympathique pour les autres !!",
+      "pros": [],
+      "cons": [
+        "social_inconsiderate_behavior"
+      ]
+    },
+    {
+      "review": "[2024-07-03]: Posto pratico e senza problemi personale gentile fermata tecnica con roadsurfer per una notte strada e spiagge interessanti nei paraggi",
+      "pros": [
+        "misc_general_positive_sentiment",
+        "staff_friendly_helpful",
+        "location_beach_water_access"
+      ],
+      "cons": []
+    },
+    {
+        "review": "[2024-10-10]: Super camping\nVue sur la mer et le port de SETUBAL\n17€55 Un fourgon de 6m avec électricité \nen octobre\nAccueil sympathique et en français",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "views_sunset_aesthetic",
+            "utilities_reliable_electricity",
+            "staff_friendly_helpful",
+            "service_multilingual_human"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-10-04]: Ausser das eine Sanitärgebäude (wirklich schrecklich alt) ein guter Campingplatz.",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "facilities_broken_outdated"
+        ]
+    },
+    {
+        "review": "[2024-05-18]: Un moment très zen en pleine nature avec un accueil adorable du couple de jeunes propriétaires. Suite aux commentaires précédents : arrivée par le village de San Cristovao et aucun problème d’accès. On se sent bien chez eux et nous confirmons l’excellent dîner au resto O Chourico !",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "scenery_natural_beauty",
+            "staff_friendly_helpful",
+            "tips_local_knowledge",
+            "catering_bar_restaurant_onsite"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-15]: Pour un parking à côté de la plage et proche du littoral c’est très bien. Il n’y a aucun service mais vous passerez une bonne nuit et c’est propre.",
+        "pros": [
+            "location_beach_water_access",
+            "misc_general_positive_sentiment",
+            "atmosphere_quiet_peaceful",
+            "facilities_clean_modern"
+        ],
+        "cons": [
+            "service_lack_of_amenities"
+        ]
+    },
+    {
+        "review": "[2024-04-03]: génial une aire au bord de la mer services propres chemin pour aller à la plage super pour les toutous quelques commerces au village tjrs plaisir a venir la",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "location_beach_water_access",
+            "facilities_clean_modern",
+            "pet_friendly_amenities",
+            "supplies_nearby_shops_fuel"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-10-14]: Platz sieht gut aus, aber laut Rezeption gibt es schon seit Wochen keine Waschmaschinen mehr und sie sind angeblich nicht in der Lage, diese Fehlinformation auf Park4Night zu korrigieren. Da wir dringend waschen mussten, sind wir deshalb wieder weggefahren.",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "service_lack_of_amenities",
+            "misc_other_cons"
+        ]
+    },
+    {
+        "review": "[2024-07-10]: Great, near the beach, bus stop in front",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "location_beach_water_access",
+            "misc_other_pros"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-12-13]: Great stop, free electricity. 10 minute walk to the beautiful beach.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "value_affordable_fair",
+            "utilities_reliable_electricity",
+            "location_beach_water_access",
+            "scenery_natural_beauty"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-01]: Repetimos!!!! Hace tres años estuvimos aquí, área genial!!! Los aparcamientos de la izquierda un poco inclinados pero nada que no se pueda resolver con los calzos!! La barrera inutilizó el ayuntamiento antes de nuestra primera visita, debido a la gran afluencia de AC, ya no solo por quedarse  sino por vaciar/recargar, debido a esto permitieron el estacionamiento y pernocta en los de la izquierda. Este año nos hemos encontrado con puesto mantenimiento de bicicletas, tiene agua a presión y sitio para sujetar la bici, también tiene distintas herramientas como destornilladores, desmontables y llave inglesa. Un 10 al ayuntamiento !!!!!!!!",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "municipal_support_pro",
+            "facilities_vehicle_wash"
+        ],
+        "cons": [
+            "terrain_uneven_sloping"
+        ]
+    },
+    {
+        "review": "[2024-07-30]: Schmuckloser, kleiner Platz. Es wird sich in die letzte Lücke gequetscht. Die Tapas-Bar ist entgegen mancher Meinung hier unglaublich teuer und unorganisiert.",
+        "pros": [],
+        "cons": [
+            "misc_general_negative_sentiment",
+            "overcrowding_situational_busy",
+            "price_expensive_overpriced",
+            "misc_other_cons"
+        ]
+    },
+    {
+        "review": "[2024-02-28]: Vielen Dank an den Verbund Alentejo/Ribatejo für die Bereitstellung dieser toll durchdachten, großzügig und auf Sicherheit konzipierten Plätze, von denen es im ganzen Alentejo einige gibt. Wir durften diesen 3 Nächte nutzen. Dieser hatt 5 Parzellen und war mit 4 CC belegt. Den 1 freien SP wollten 2 CC belegen, was aus Sicherheitsgründen abgelehnt wurde.",
+        "pros": [
+            "municipal_support_pro",
+            "pitches_spacious_private",
+            "safety_feeling_safe_community",
+            "safety_secure_fenced_monitored"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-05-23]: Wir haben uns sofort wohlgefühlt. Die Bäder sind sauber und das Frühstück Weltklasse!",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "facilities_clean_modern",
+            "catering_bar_restaurant_onsite"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-16]: camping pas trop top ! emplacements assez spacieux sous les pins ou dans le sable mais rempli de fourmis et le comble douche froide même dans les 2 sanitaires. nous avons payé 23 euros 20 plus 3 euros pour notre toutou ! sinon merci au jeune gardien qui nous a fait rentrer hier soir alors que l'accueil était fermé..",
+        "pros": [
+            "pitches_spacious_private",
+            "shade_natural_provided",
+            "staff_friendly_helpful"
+        ],
+        "cons": [
+            "misc_general_negative_sentiment",
+            "environment_pests_insects_smells",
+            "showers_cold_low_pressure",
+            "price_expensive_overpriced"
+        ]
+    },
+    {
+        "review": "[2025-03-22]: We loved it here. Town looks so pretty lit up at night. Very quiet, peaceful sleep. Choice of road or footbridge to walk across to the town with a reasonable choice of restaurants and bars. Supermarket is about 25 min walk.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "views_sunset_aesthetic",
+            "atmosphere_quiet_peaceful",
+            "location_town_center_proximity",
+            "supplies_nearby_shops_fuel"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-12-12]: Perfect place! I have been here two years ago on the park on the side, this one is much better!",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-11-01]: Arrived today after 9am - Everything closed",
+        "pros": [],
+        "cons": [
+            "situational_temporary_blockage"
+        ]
+    },
+    {
+        "review": "[2025-02-18]: Water is working agai",
+        "pros": [
+            "water_potable_easy_refill"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-06-09]: We drove in and parked but thought lots of trucks here and wasn’t overly keen but then saw a homeless person setup camp and decided to move. Also a few young guys walking around all the vehicles. If it doesn’t feel right then we move and this is the first one that just didn’t feel right. We didn’t check facilities.",
+        "pros": [],
+        "cons": [
+            "safety_theft_risk_loitering",
+            "misc_general_negative_sentiment"
+        ]
+    },
+    {
+        "review": "[2024-04-26]: excelente espaço com excelentes condições para dormir e estar com a família largo campo onde os miúdos podem brincar a vontade tem uma magnífica zona de churrasco e com chuveiro ao lado este espaço",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "pitches_spacious_private",
+            "family_child_friendly_playground",
+            "misc_other_pros"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-07-16]: convenient. toilets are very dirty at the end of the day",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "cleanliness_dirty_unkept"
+        ]
+    },
+    {
+        "review": "[2025-11-30]: Aufenthalt 20./21. November 2025.\nKleiner Platz, nicht für große Reisemobile geeignet . Alle Gebäude älter aber sauber. Intermarche 2 Minuten entfernt, hier sind auch Waschmaschinen. Empfehlung!",
+        "pros": [
+            "facilities_clean_modern",
+            "supplies_nearby_shops_fuel",
+            "laundry_effective_available",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "parking_unsuitable_large_rvs"
+        ]
+    },
+    {
+        "review": "[2025-03-05]: Petit camping pas cher,bien entretenu avec de grands emplacements. \nSi vous faites partie d Acsi vous avez le 10 pour cent. \n7 euros 45 pour un emplacement et une personne. \nAjouter 1.30 si vous voulez l'électricité. \n\nLes sanitaires sont anciens mais les douches sont chaudes. \nAppréciable dans la région. \nL'eau est potable. \nJe n'ai pas utilisé les toilettes.",
+        "pros": [
+            "value_affordable_fair",
+            "pitches_spacious_private",
+            "discounts_accepted_acsi",
+            "utilities_reliable_electricity",
+            "showers_hot_high_pressure",
+            "water_potable_easy_refill"
+        ],
+        "cons": [
+            "facilities_broken_outdated"
+        ]
+    },
+    {
+        "review": "[2024-05-09]: Muy buen lugar con todo lo necesario para la Camper. Duchas super limpias, agua, electricidad y wifi. Importante: se puede entrar hasta las 21hs. Nosotros llegamos a las 22 y no pudimos pasar, nos quedamos en un estacionamiento gratuito que está justo en la puerta y en la mañana apenas abrió entramos para usar los servicios",
+        "pros": [
+            "facilities_clean_modern",
+            "water_potable_easy_refill",
+            "utilities_reliable_electricity",
+            "connectivity_strong_wifi",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "checkin_rules_restrictive_slow"
+        ]
+    },
+    {
+        "review": "[2024-02-19]: Tudo o que é necessário para passar dias calmos e sossegados, serviços, limpeza bons pena é que uma funcionária não seja dotada para desempenhar a função de receção.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "facilities_clean_modern"
+        ],
+        "cons": [
+            "service_staff_rude_unfriendly"
+        ]
+    },
+    {
+        "review": "[2025-06-09]: Quiet place, near some houses in construction but nice spot to spend the night",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-12-16]: c'est génial allez-y les yeux fermés !",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-06-26]: Super point de repos. Calme, propre, très joli, avec des services sanitaires si besoin. Seul bémol : les mouches (notamment le matin) et les moustiques qui arrivent tout de suite après la tombée de la nuit. Je recommande tout de même car nuit tranquille assurée !",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "facilities_clean_modern",
+            "scenery_natural_beauty",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "environment_pests_insects_smells"
+        ]
+    },
+    {
+        "review": "[2024-05-27]: Update 27/05/2024, there was warm water and it’s good if you want a quick clean up. Thanks for this free service Melides!",
+        "pros": [
+            "showers_hot_high_pressure",
+            "value_affordable_fair"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-12]: Vista deslumbrante. Local tranquilo. Casas de banho fechadas.",
+        "pros": [
+            "views_sunset_aesthetic",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": [
+            "facilities_sanitary_limited_hours"
+        ]
+    },
+    {
+        "review": "[2025-02-19]: Idéal parking space close to village centre. Quiet overnight, plenty of places to walk the dog.",
+        "pros": [
+            "location_town_center_proximity",
+            "atmosphere_quiet_peaceful",
+            "pet_friendly_amenities"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-29]: merci à intermarche  aire de service parfaite  il faut passer par les pompes essence pour y acceder",
+        "pros": [
+            "supplies_nearby_shops_fuel",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-10-19]: bien pour une nuit tranquille tout près du centre et du port !",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "location_town_center_proximity",
+            "location_beach_water_access"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-04-21]: Guter sicherer geduldeter Freisteherplatz für ein oder zwei erholsame Strandtage (kurzer Weg zum sehr schönen Strand). Die direkt vor der \"Haustür\" gelegenen Einkehrmöglichkeiten werden durch die Einheimischen stark genutzt (insbesondere mittags). Daher bitte platzsparend parken (nicht wie auf dem Foto); die Anwohner freuen sich über Respekt und ein freundliches \"Bom Dia\"...",
+        "pros": [
+            "safety_feeling_safe_community",
+            "status_tolerated_wildcamp",
+            "atmosphere_quiet_peaceful",
+            "location_beach_water_access",
+            "scenery_natural_beauty",
+            "catering_bar_restaurant_onsite"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2026-01-10]: Was andere an diesem Stellplatz toll finden habe ich bisher nicht rausfinden können. Noch nicht mal der Entsorgungsplatz ist leicht anzufahren. Das einzige positive ist dass es direkt neben einem Schwimmbad ist und der Supermarkt in fünf Minuten zu Fuß. Der Rest ist für Wohnmobilisten die reinste Katastrophe.",
+        "pros": [
+            "activities_onsite_yoga_pool",
+            "supplies_nearby_shops_fuel"
+        ],
+        "cons": [
+            "waste_disposal_poor_design",
+            "misc_general_negative_sentiment"
+        ]
+    },
+    {
+        "review": "[2025-05-24]: oui parking convenable tranquille avec le nécessaire autour, pour passer quelques nuits autonomes gratuit le seul dans le secteur, attention 10 places mais il y a déjà 4 campings car sur place qui sont là depuis longtemps aux moins 4 à 5 mois sur place, chaque emplacement fond 10 mètres de longueur pour un bon campings cars,jolie coin .",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "supplies_nearby_shops_fuel",
+            "value_affordable_fair",
+            "access_easy_large_vehicles",
+            "scenery_natural_beauty"
+        ],
+        "cons": [
+            "overcrowding_situational_busy"
+        ]
+    },
+    {
+        "review": "[2024-06-05]: Parfait pour une nuit, d'ailleurs nuit très tranquille, piscine municipale à 50 mètres.\nEmplacements gratuits prévoir les cales, vidanges et plein eau gratuit, accès certainement compliqué à la zone de services pour les grands ccar, ou quand des voitures utilisent les places qui jouxtent cet zone.\nPour les amoureux de la période Romaine ne manquez pas les ruines de Mirobriga.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "activities_onsite_yoga_pool",
+            "value_affordable_fair",
+            "water_potable_easy_refill",
+            "waste_disposal_functional",
+            "heritage_culture_history"
+        ],
+        "cons": [
+            "terrain_uneven_sloping",
+            "waste_disposal_poor_design",
+            "maneuvering_tight_spaces_restrictions"
+        ]
+    },
+    {
+        "review": "[2025-06-04]: Lieu magique si vous ne supporté pas les oiseaux, les cloches des moutons, le bruit des poissons qui sautent dans le lac et l'acceuil super sympa de Dominick, alors passez votre chemin. Encore merci si je pouvais je mettrais 10 étoiles.",
+        "pros": [
+            "scenery_natural_beauty",
+            "atmosphere_nature_sounds_wildlife",
+            "location_beach_water_access",
+            "staff_friendly_helpful",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-23]: Lugar tranquilo para dormir, é a beira da estrada, mas de noite passam muitos poucos carros. O lado ruim é que os trabalhos dos barcos começam bem cedo e o barulho também. Por volta de 7h30 começam a passar muitos carros na estrada. A vista é bonita, a praia não é muito limpa.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "scenery_natural_beauty"
+        ],
+        "cons": [
+            "noise_traffic_airplane_loud",
+            "misc_other_cons",
+            "environment_litter_trash_accumulation"
+        ]
+    },
+    {
+        "review": "[2025-08-17]: Endroit très accueillant, avec de jolies surprises. Commodités simples (douche, vaisselle, possibilité de laver le linge à la main, vider les toilettes et remplir d'eau) mais fonctionnelles. attention, pas de WC. Nuit au calme, je recommande.",
+        "pros": [
+            "staff_friendly_helpful",
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "laundry_effective_available",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": [
+            "service_lack_of_amenities"
+        ]
+    },
+    {
+        "review": "[2025-07-28]: Esprit camping à la ferme, au calme, animaux, jeux, très bon accueil (si vous optez pour la formule 19h vous devez patienter jusqu’à 19h), plage pas très loin, on reviendra",
+        "pros": [
+            "unique_vibe_creative_eco",
+            "atmosphere_quiet_peaceful",
+            "activities_farm_eco_interaction",
+            "family_child_friendly_playground",
+            "staff_friendly_helpful",
+            "location_beach_water_access"
+        ],
+        "cons": [
+            "checkin_rules_restrictive_slow"
+        ]
+    },
+    {
+        "review": "[2025-06-19]: Top! Wir haben uns sehr wohl gefühlt und hatten eine tolle Zeit. Die vielen Tiere vor haben unserem Sohn (5 Jahre) auch sehr gefallen. Ansonsten ruhiger Platz und sehr netter Betreiber. Die Preise sind wirklich super, klare Empfehlung!",
+        "pros": [
+            "family_child_friendly_playground",
+            "activities_farm_eco_interaction",
+            "atmosphere_quiet_peaceful",
+            "staff_friendly_helpful",
+            "value_affordable_fair"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-12]: Lugar ideal, rodeado de naturaleza y de animales. Ducha de agua caliente, llenado y vaciado de aguas y electricidad. El gerente, Pedro, se preocupa por hacerte la estancia, lo más agradable posible.\nSe duerme de maravilla, si ningún ruido.\nPor ser un lugar tan especial, debemos de ser lo más respetuoso y cuidadosos posible, con los animales.\nVolveré.",
+        "pros": [
+            "scenery_natural_beauty",
+            "activities_farm_eco_interaction",
+            "showers_hot_high_pressure",
+            "water_potable_easy_refill",
+            "waste_disposal_functional",
+            "utilities_reliable_electricity",
+            "staff_friendly_helpful",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-23]: soggiornanto per una notte. Posto tranquillo con scarico e carico acque ed elettricità. L'area è gestita da Pedro, molto accogliente e pronto a fornire qualsiasi indicazione. Non do 5 stelle in quanto i bagni e le doccie sarebbero da costruire in muratura. Per il resto il posto è davvero tranquillo e piacevole!",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "utilities_reliable_electricity",
+            "staff_friendly_helpful",
+            "tips_local_knowledge"
+        ],
+        "cons": [
+            "facilities_broken_outdated"
+        ]
+    },
+    {
+        "review": "[2024-05-21]: Wir haben nachmittags kurzfristig telefonisch für zwei Camper reserviert. Der Platz ist einfach, naturbelassen, ruhig und mit Pedro und seinen Tieren einzigartig!! Die einzige Einschränkung sind die rudimentären Sanitäranlagen, die aber offen kommuniziert sind. Abends gab‘s dann noch eine kurze Quad Tour zu den Dünen an der Atlantik Küste. Vielen Dank für die super Zeit!!",
+        "pros": [
+            "staff_friendly_helpful",
+            "atmosphere_quiet_peaceful",
+            "scenery_natural_beauty",
+            "activities_farm_eco_interaction",
+            "unique_vibe_creative_eco",
+            "location_beach_water_access",
+            "facilities_eco_rustic_amenities"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-05-13]: Completely new parking spot. Flat and easy to access. But there are wild dogs living here and they kept us up most of the night with their barking.",
+        "pros": [
+            "terrain_level_flat",
+            "access_easy_large_vehicles"
+        ],
+        "cons": [
+            "noise_dogs_animals_neighbors"
+        ]
+    },
+    {
+        "review": "[2024-05-02]: Três somente por conta das Formigas, formigas e formigas… uma noite bem bem fria com muitos habitantes caminhando e falando alto. Seguro é bom para uma noite. Gracias por permitir estacionar por 24hs. Único local gratuito disponível.",
+        "pros": [
+            "safety_feeling_safe_community",
+            "value_affordable_fair"
+        ],
+        "cons": [
+            "environment_pests_insects_smells",
+            "noise_dogs_animals_neighbors"
+        ]
+    },
+    {
+        "review": "[2024-04-12]: We arrived at Friday evening around 19:30. Only a few parking spaces left. More suited for smaller vans. Very loud bar.  We drove on further South to Palma (30 minute drive).",
+        "pros": [],
+        "cons": [
+            "overcrowding_situational_busy",
+            "parking_unsuitable_large_rvs",
+            "noise_events_music_parties"
+        ]
+    },
+    {
+        "review": "[2024-02-10]: Super.\nSehr schöne Platz für ein Zwischen Stopp oder Urlaub. Hat alles, was man Braucht.\nSehr ruhig mit schöne Wanderwege bis Ocean. Die Tiere, sind was Besonderes.\nIch kann nur weiter empfehlen und wir kommen auf jeden Fall wieder.\nVielen Dank Pedro.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "atmosphere_quiet_peaceful",
+            "location_nature_trails_access",
+            "location_beach_water_access",
+            "activities_farm_eco_interaction",
+            "staff_friendly_helpful"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-05-05]: Vorübergehend geschlossen! Wir haben einen Tag vorher eine Email geschrieben aber keine Antwort erhalten, sind trotzdem hingefahren. Vor Ort haben wir angerufen, unfreundlich wurden wir am Telefon auf das Schild am Eingang hingewiesen „vorübergehend geschlossen“. Alles etwas undurchsichtig.",
+        "pros": [],
+        "cons": [
+            "situational_temporary_blockage",
+            "service_staff_rude_unfriendly",
+            "signage_unclear_directions"
+        ]
+    },
+    {
+        "review": "[2024-07-11]: Pedro muy amable. El espacio bien y tranquilo. la ducha muy imaginativa pero un poco desastrosa. si tuviera baños... sería otra cosa. pero por 12,50 electricidad incluida 8 amp. no se puede pedir más",
+        "pros": [
+            "staff_friendly_helpful",
+            "atmosphere_quiet_peaceful",
+            "value_affordable_fair"
+        ],
+        "cons": [
+            "facilities_broken_outdated",
+            "service_lack_of_amenities"
+        ]
+    },
+    {
+        "review": "[2024-08-22]: Excelente!! Un sitio ideal si eres respetuoso con la naturaleza y el medioambiente. Finca tranquila y limpia rodeada de animales y naturaleza. Ducha de agua caliente y llenado de agua. Gracias Pedro por este proyecto tan bonito libre de masificaciones turísticas",
+        "pros": [
+            "unique_vibe_creative_eco",
+            "atmosphere_quiet_peaceful",
+            "facilities_clean_modern",
+            "activities_farm_eco_interaction",
+            "showers_hot_high_pressure",
+            "water_potable_easy_refill",
+            "staff_friendly_helpful"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-11]: Recomendamos bastante! O Pedro é super prestável e o espaço bastante agradável. Uma ótima opção para dormir e tomar um banho de água quentinha ☺️",
+        "pros": [
+            "staff_friendly_helpful",
+            "misc_general_positive_sentiment",
+            "showers_hot_high_pressure"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-10-06]: Pedro son accueil est très sympa : Ici c’est calme ¨ no stress ¨ c’est vrai que nous avons passé une nuit de plein sommeil récupérateur. Merci  je vous recommande cette aire pour cela et ses équipements sont bien suffisants. Seuls bémols : mais Pedro n’en n’est pas responsable les moustiques équipez vous…        Et le vidage des eaux noires: enlever la grille qui retient tout…sinon nickel",
+        "pros": [
+            "staff_friendly_helpful",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": [
+            "environment_pests_insects_smells",
+            "waste_disposal_poor_design"
+        ]
+    },
+    {
+        "review": "[2025-02-16]: pessoal super simpático, um espaço super agradável e sossegado, com muitos animais. um local a repetir sem dúvida. com todos os serviços e muito para explorar dentro e fora da quinta",
+        "pros": [
+            "staff_friendly_helpful",
+            "atmosphere_quiet_peaceful",
+            "activities_farm_eco_interaction",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-05-18]: such a lovely peaceful site and a short distance to a beautiful beach and restaurants. The owner is a lovely guy that made us feel very welcome. Will be back.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "location_beach_water_access",
+            "location_town_center_proximity",
+            "staff_friendly_helpful",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-08]: Nous avons passé une nuit chez Pedro et il a été vraiment très accueillant. La petite ferme a ravie les enfants.\nPas de payement en carte bancaire possible uniquement espèce. \n10 euros la nuit sans électricité.",
+        "pros": [
+            "staff_friendly_helpful",
+            "activities_farm_eco_interaction"
+        ],
+        "cons": [
+            "payment_issues_cash_only_friction"
+        ]
+    },
+    {
+        "review": "[2025-08-17]: Super, c’est carré Check in Check out …. Le lieu est très bien organisé, douche chaude, évier pour vaisselle. Les animaux de la ferme avec madame l’Autriche font le donneur de tous petits et grands. Pas de toilettes et quelques moustiques. Je recommande ?",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "showers_hot_high_pressure",
+            "facilities_clean_modern",
+            "activities_farm_eco_interaction"
+        ],
+        "cons": [
+            "service_lack_of_amenities",
+            "environment_pests_insects_smells"
+        ]
+    },
+    {
+        "review": "[2025-10-28]: We spent one night and loved the place. Pedro gave us the warmest welcome, quickly showed us around and we were good to go. There is a little animal farm, a tiny black cat who adopted us for the morning and a large place for many vans.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "staff_friendly_helpful",
+            "activities_farm_eco_interaction",
+            "pitches_spacious_private"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-24]: Sitio muy cerca de la carretera. Hay basuras y un camping cercano. Tiene acceso a una pequeña playa. Sin embargo, recomendamos levantarse pronto e ir a una playa cercana.",
+        "pros": [
+            "location_beach_water_access"
+        ],
+        "cons": [
+            "environment_litter_trash_accumulation"
+        ]
+    },
+    {
+        "review": "[2024-06-17]: I just spend a night there. It is open and the owners are super friendly!\"\"[2025-11-18]: wow so beautiful and very friendly host",
+        "pros": [
+            "staff_friendly_helpful",
+            "scenery_natural_beauty"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-06]: Merci à cette ville pour avoir mis ses services à notre disposition,lieu ombragé pour ceux qui veulent y rester",
+        "pros": [
+            "municipal_support_pro",
+            "shade_natural_provided"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-10-17]: 4 gerade Stellplätze werden von einheimischen Dauercampern belegt und der Rest der Parkplätze eignen sich nicht zum übernachten, da sie extrem steil sind. Wer nicht im Stehen schlafen möchte, sollte sich einen anderen Platz suchen.",
+        "pros": [],
+        "cons": [
+            "overcrowding_situational_busy",
+            "terrain_uneven_sloping",
+            "misc_general_negative_sentiment"
+        ]
+    },
+    {
+        "review": "[2025-09-18]: Platz war voll mit PKW’s",
+        "pros": [],
+        "cons": [
+            "overcrowding_situational_busy"
+        ]
+    },
+    {
+        "review": "[2025-03-20]: Local tranquilo para passar a noite. Nos sentimos seguros.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "safety_feeling_safe_community"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-07-12]: Very good machines! And parking space! 12 kg and everything dry for €9. In about an hour.",
+        "pros": [
+            "laundry_effective_available"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-02-26]: We stayed in the beach car park further along. It's for the two restaurants but we had a very peaceful night. Bins but no there facilities.",
+        "pros": [
+            "location_beach_water_access",
+            "atmosphere_quiet_peaceful",
+            "waste_disposal_functional"
+        ],
+        "cons": [
+            "service_lack_of_amenities"
+        ]
+    },
+    {
+        "review": "[2025-06-13]: A free site. Ruined by a disco over the road (Friday night). Nowhere to walk dogs. Dog pooh over the pavements. A long walk to the beach. Really expensive restaurants",
+        "pros": [
+            "value_affordable_fair"
+        ],
+        "cons": [
+            "noise_events_music_parties",
+            "cleanliness_dirty_unkept",
+            "location_remote_isolated_far",
+            "misc_other_cons"
+        ]
+    },
+    {
+        "review": "[2024-07-08]: agradavelmente sossegado e próximo de restaurantes/supermercados",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "supplies_nearby_shops_fuel",
+            "location_town_center_proximity"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-07]: Utilizzato il camper service in maniera gratuita. Abbiamo contraccambiato acquistando alla gastronomia take away all ingresso del intermarchè. Piatti deliziosi.",
+        "pros": [
+            "waste_disposal_functional",
+            "value_affordable_fair",
+            "supplies_nearby_shops_fuel",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-22]: Todos los servicios gratuitos. Vaciar y rellenar.\nGasolinera y supermercado Intermache.\nTambién hay lavandería, y muy cerca Lidl y Aldi.",
+        "pros": [
+            "value_affordable_fair",
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "supplies_nearby_shops_fuel",
+            "laundry_effective_available"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-06]: Pas très propre , nous sommes parties et avons trouvé un meilleur spot à 300m",
+        "pros": [],
+        "cons": [
+            "cleanliness_dirty_unkept"
+        ]
+    },
+    {
+        "review": "[2024-04-27]: Beautiful, quiet, and scenic spot. Toilets were shut. We were there with 4 other campers on a Friday night and had a great sleep. The restaurant is lovely with cheap beers and friendly staff. Would highly recommend!",
+        "pros": [
+            "scenery_natural_beauty",
+            "atmosphere_quiet_peaceful",
+            "catering_bar_restaurant_onsite",
+            "value_affordable_fair",
+            "staff_friendly_helpful",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "facilities_sanitary_limited_hours"
+        ]
+    },
+    {
+        "review": "[2024-08-14]: La ducha de chicas tiene el cerrojo roto y no hay donde colgar o apoyar nada pero están limpias, tienen agua caliente y no te molesta nadie. La ducha de los chicos si funcionaba el cerrojo de la ducha, pero no el de los WCs.",
+        "pros": [
+            "facilities_clean_modern",
+            "showers_hot_high_pressure",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": [
+            "facilities_broken_outdated"
+        ]
+    },
+    {
+        "review": "[2024-05-26]: came here as football club full with a game on. stayed a Saturday night no problem next to a small park with lit up fountain. nice clean toilets can't complain",
+        "pros": [
+            "scenery_natural_beauty",
+            "facilities_clean_modern",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-03-01]: Czysto, dobre ciśnienie, woda bez zapachu, kran ze standardowym gwintem.",
+        "pros": [
+            "facilities_clean_modern",
+            "water_potable_easy_refill"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-10-09]: Safety and quiet. Too far from the center but you can find a supermarket nearby with everything you need. If you want to walk in the city, park closer to the center or use a bicycle. The parking itself is very good",
+        "pros": [
+            "safety_feeling_safe_community",
+            "atmosphere_quiet_peaceful",
+            "supplies_nearby_shops_fuel",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "location_remote_isolated_far"
+        ]
+    },
+    {
+        "review": "[2025-02-16]: Great stay here, very quiet but we were only camped around (unlike others mentioned here!). Road is busy but feels quiet, but quite residential area.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-03-10]: Hartstikke goed. Douches lekker warm, alles heel schoon, van alles aanwezig en goedkoop. Ruime percelen,  rustig en geweldig behulpzame receptionist. Op loopafstand van hartstikke leuk dorp. Aanrader!",
+        "pros": [
+            "showers_hot_high_pressure",
+            "facilities_clean_modern",
+            "value_affordable_fair",
+            "pitches_spacious_private",
+            "atmosphere_quiet_peaceful",
+            "staff_friendly_helpful",
+            "location_town_center_proximity",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-07-18]: Kleiner Campingplatz, der gut zu und trotzdem ruhig gelegen ist. Durch die Nähe zu Lidl, Intermarche und Aldi sind sehr gute Einkaufsmöglichkeiten geboten! Die Parzellen sind großzügig bemessen, allerdings kann man das Platzangebot nicht nutzen, da der Boden eine reine Staubschicht/Erde ist und der Feine Staub sofort ÜBERALL ist. Außerdem hatten wir den gesamten Boden voller Ameisennester, sodass man alles peinlichst geschlossen halten muss. Geschlossen halten ist allerdings sowieso unumgänglich, weil alles voller Mücken ist. Die Sanitäranlagen sollte man besser nicht nutzen; es gibt weder Seife noch Toilettenbrillen oder gar Toilettenpapier. Beim Händewaschen kam das Wasser auch oben aus der Armatur. Mit knapp über 20Euro zwar günstig, aber um “nur den Camper über Nacht abzustellen“, auch kein Schnäppchen.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "supplies_nearby_shops_fuel",
+            "pitches_spacious_private",
+            "value_affordable_fair"
+        ],
+        "cons": [
+            "terrain_muddy_dusty_flooding",
+            "environment_pests_insects_smells",
+            "service_lack_of_amenities",
+            "facilities_broken_outdated"
+        ]
+    },
+    {
+        "review": "[2024-10-14]: Guter Platz für eine Übernachtung, sauber, ruhig und  günstig, alle Supermärkte nebendran. Grosse Stellplätze.  Anfang Oktober  gut besucht, fast alle Plätze belegt. Etwa 20 Minuten zur Stadt, sie einen Besuch wert ist. An der Rezeption muss man etwas Geduld mitbringen und es hilft, die wichtigsten Worte auf Portugisch mal gegoogelt zu haben.",
+        "pros": [
+            "facilities_clean_modern",
+            "atmosphere_quiet_peaceful",
+            "value_affordable_fair",
+            "supplies_nearby_shops_fuel",
+            "pitches_spacious_private",
+            "location_town_center_proximity"
+        ],
+        "cons": [
+            "checkin_rules_restrictive_slow"
+        ]
+    },
+    {
+        "review": "[2025-03-22]: well run council campsite, marked out pitches so no one should be in your pitch or walking through your pitch, except for hookup",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "municipal_support_pro",
+            "pitches_spacious_private"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-05-29]: Joli petit camping municipal bien arboré, calme , plat. Sanitaire propre,douche chaude et prix plus qu'abordable .\nJe recommande vivement.",
+        "pros": [
+            "municipal_support_pro",
+            "shade_natural_provided",
+            "atmosphere_quiet_peaceful",
+            "terrain_level_flat",
+            "facilities_clean_modern",
+            "showers_hot_high_pressure",
+            "value_affordable_fair",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-12]: Magnifique petit camping ACSI. Personnel très sympathique. Sanitaires un peu anciens mais très très propres. Eau chaude partout . Grands emplacements  , pelouse tondue régulièrement. Prix 18,58 € avec électricité et carte ACSI. Merci la municipalité.",
+        "pros": [
+            "discounts_accepted_acsi",
+            "staff_friendly_helpful",
+            "facilities_clean_modern",
+            "showers_hot_high_pressure",
+            "pitches_spacious_private",
+            "utilities_reliable_electricity",
+            "municipal_support_pro",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-12]: Der Platz hat uns sehr gut gefallen. Alles tiptop sauber, gepflegter Platz, Einkaufsmöglichkeiten in fußläufiger Entfernung. Alcacer do Sal ist ein sehr authentischer Ort. Wir würden wiederkommen.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "facilities_clean_modern",
+            "supplies_nearby_shops_fuel",
+            "location_town_center_proximity"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-10-08]: Basic, but perfect stopover on route south. Showers were super for me - hot and plenty of pressure. Pitches are well kept and large. Intermarche just next door. :)",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "showers_hot_high_pressure",
+            "pitches_spacious_private",
+            "supplies_nearby_shops_fuel"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-02]: Noite tranquila, apesar de estar próximo  à avenida.",
+        "pros": [
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-07-29]: Comme indiqué dans de nombreux commentaires, nous avons été séduits par ce lieux atypique, et par le projet de Pedro, qui nous a vraiment bien accueilli, avec sympathie et bonne humeur. C’est un plaisir d’observer les animaux cohabiter ensemble. Nous sommes restés 2 nuits, tant cela nous a plu.",
+        "pros": [
+            "unique_vibe_creative_eco",
+            "staff_friendly_helpful",
+            "activities_farm_eco_interaction"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-18]: It’s a great stop for nature lovers! the kids had a wonderful time feeding the animals ☺️ we spent a very quiet and tranquil night there.",
+        "pros": [
+            "activities_farm_eco_interaction",
+            "atmosphere_quiet_peaceful",
+            "family_child_friendly_playground"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-03]: Lugar tranquilo para ficar, com duche e lava-louça. Algumas mesas também para refeições. Tudo impecavel",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "facilities_clean_modern"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-07-09]: il posto è in crescita...ma se vi piacciono i campeggi semplici è il luogo perfetto. terreno pianeggiante, doccia calda, tavoli da pic nic e tanti animali...per i bimbi sarebbe perfetto! check in e check out semplici e proprietario disponibile. noi siamo arrivati quasi alle 10 di sera e non c'è stato nessun problema. consigliato!",
+        "pros": [
+            "terrain_level_flat",
+            "showers_hot_high_pressure",
+            "activities_farm_eco_interaction",
+            "family_child_friendly_playground",
+            "checkin_automated_flexible_process",
+            "staff_friendly_helpful",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-09-08]: Lugar muy tranquilo en plena naturaleza. Tiene todos los servicios excepto wc. Hay animales y es bonito verlos en la finca libremente. Hay que llamar antes de entrar, pero puede hacerse desde la misma entrada, ya que Pedro, que es francamente agradable y dispuesto te responde al instante. Muy recomendable",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "scenery_natural_beauty",
+            "activities_farm_eco_interaction",
+            "staff_friendly_helpful"
+        ],
+        "cons": [
+            "service_lack_of_amenities"
+        ]
+    },
+    {
+        "review": "[2025-07-14]: area tranquila, con mucha sombra, puedes vaciar aguas grises y negras y coger agua. Gratuita. Gracias a las autoridades,  ojalá más sitios como estos.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "shade_natural_provided",
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "value_affordable_fair",
+            "municipal_support_pro"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-05-01]: Sehr schöner platz, bei Ebbe hat man einen eigenen kleinen wunderschönen Sandstrand. Öffentliche Toiletten wären eigentlich nur 5 Gehminuten entfernt sind aber leider an tourismusarmen Tagen geschlossen. Die Beachbar daneben hätte eine Toilette ist aber völlig überteuert und man kann ohne konsum nicht die Toilette benützen.",
+        "pros": [
+            "scenery_natural_beauty",
+            "location_beach_water_access"
+        ],
+        "cons": [
+            "facilities_sanitary_limited_hours",
+            "price_expensive_overpriced"
+        ]
+    },
+    {
+        "review": "[2024-08-10]: Endroit sympatique très calme bar a côté",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "atmosphere_quiet_peaceful",
+            "catering_bar_restaurant_onsite"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-11-21]: Hemos pasado la noche aquí y super tranquilos y muy seguros.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "safety_feeling_safe_community"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-09-20]: belle vue mais nous sommes partis à cause des mouches. c'était intenable.",
+        "pros": [
+            "views_sunset_aesthetic"
+        ],
+        "cons": [
+            "environment_pests_insects_smells"
+        ]
+    },
+    {
+        "review": "[2024-10-01]: Au top, l'eau coule rapidement. Merci à la station d'avoir mis ça à disposition. Obrigado!!!",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "water_potable_easy_refill"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-06-01]: nous avons dormi une nuit ici pour 10€ \nterrain très mal entretenu, installations très insalubres,de la fiesta jusqu'à pas d'heure heureusement le matin calme , 10€ c'est se foutre de nous.",
+        "pros": [
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": [
+            "cleanliness_dirty_unkept",
+            "noise_events_music_parties",
+            "price_expensive_overpriced"
+        ]
+    },
+    {
+        "review": "[2024-06-19]: Está bien para pasar la noche. Es un gran parking para camiones y autobuses, así que es algo ruidoso a las 6:00AM porque comienzan a salir. Cerca de un Lidl y con un parquecito con zona de picnic.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "supplies_nearby_shops_fuel",
+            "family_child_friendly_playground"
+        ],
+        "cons": [
+            "noise_traffic_airplane_loud"
+        ]
+    },
+    {
+        "review": "[2024-08-20]: Vaciado y llenado de aguas, bien ubicado porque no hay que callejear pero hay mucho tránsito de personas de la zona llenando grandes depósitos de agua (1000l) que te hacen esperar una eternidad. Gente con “mala pinta” merodeando la zona, no nos pareció seguro.",
+        "pros": [
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "access_easy_large_vehicles"
+        ],
+        "cons": [
+            "utilities_water_nonpotable_slow",
+            "safety_theft_risk_loitering"
+        ]
+    },
+    {
+        "review": "[2025-03-27]: Tivemos duas noites tranquilas e seguras. Todos os serviços funcionam bem. Apesar de compartilhar o grande estacionamento com caminhões e outros carros não percebemos nenhum problema e nenhum ruído fora do normal.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "safety_feeling_safe_community",
+            "waste_disposal_functional"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-07-08]: En la zona había aparcado camiones cisterna, autobuses, turismos... y 4 autocaravanas! Tiene servicio de aguas grises, negras y llenado pero algo destartalado. Próximo tiene\n Lidl y Aldi. Para pernoctar  no está mal, siempre y cuando los vecinos no monten mucha fiesta, porque en un parque cercano estaban con música, bailando y cantando. O los camioneros arrancando a las 6 h",
+        "pros": [
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "supplies_nearby_shops_fuel",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "facilities_broken_outdated",
+            "noise_events_music_parties",
+            "noise_traffic_airplane_loud"
+        ]
+    },
+    {
+        "review": "[2024-12-03]: Únicamente paramos para llenar y vaciar, todo bien.",
+        "pros": [
+            "water_potable_easy_refill",
+            "waste_disposal_functional",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-10-22]: Overdag valt het mee maar vanaf 17u komen er een massa vrachtwagens overnachten en lijkt deze parking op een snelwegparking.\nideale loosplaats maar overnachten is enkel in geval van nood.",
+        "pros": [
+            "waste_disposal_functional"
+        ],
+        "cons": [
+            "overcrowding_situational_busy",
+            "noise_traffic_airplane_loud"
+        ]
+    },
+    {
+        "review": "[2025-11-22]: Free water with adapter for water hose. Easy disposal of black and grey water. There is even a small picnic table in the shade. But remember to pick up your litter. There is a bit of trash which is not the way to treat a community that provides free services. Would recommend.",
+        "pros": [
+            "water_potable_easy_refill",
+            "waste_disposal_functional",
+            "shade_natural_provided",
+            "municipal_support_pro",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "utilities_adapter_required",
+            "environment_litter_trash_accumulation"
+        ]
+    },
+    {
+        "review": "[2024-08-28]: Little explanation for campers turning up late-it’s so rude turning up at 11pm! It’s just common decency to the workers/ owners and campers who many will be asleep and you rocking up will wake most up. Aim for 6pm! Sick of campers turning up late! (So respect to this lovely little reasonable campsite for turning you away;)",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "atmosphere_quiet_peaceful"
+        ],
+        "cons": [
+            "social_inconsiderate_behavior"
+        ]
+    },
+    {
+        "review": "[2024-09-21]: Parque muito calmo para passar a noite com vista para o rio. Tem WC públicos a 100 metros de distância.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "scenery_natural_beauty"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-12-25]: Sehr hübscher Ausblick, viele Wohnmobile, man fühlt sich sicher - es ist nur ein wenig windig. Auf der anderen Flussseite gibt es Touristen Pubkt mit öffentlichen Toiletten.",
+        "pros": [
+            "scenery_natural_beauty",
+            "safety_feeling_safe_community",
+            "location_beach_water_access"
+        ],
+        "cons": [
+            "weather_wind_exposure"
+        ]
+    },
+    {
+        "review": "[2025-01-20]: Such a lovely little city. Perfect parking to stay the night, and also enjoy the day.",
+        "pros": [
+            "location_town_center_proximity",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-14]: Muy tranquilo, bonitas vistas al pueblo. Tiene baños públicos pero por la noche están cerrados, abren sobre las 9 am y los limpian a esa hora. Muy cerca hay un supermercado Intermarché con lavado de coches y de ropa.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "scenery_natural_beauty",
+            "supplies_nearby_shops_fuel",
+            "facilities_vehicle_wash",
+            "laundry_effective_available"
+        ],
+        "cons": [
+            "facilities_sanitary_limited_hours"
+        ]
+    },
+    {
+        "review": "[2025-12-31]: Bueno para nosotros (al lado).",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-02-17]: Doskonale miejsce na serwis i zakupy. Wszystko funkcjonuje. Tanie paliwo i dostępne wifi i pralnia. Polecam",
+        "pros": [
+            "waste_disposal_functional",
+            "supplies_nearby_shops_fuel",
+            "value_affordable_fair",
+            "connectivity_strong_wifi",
+            "laundry_effective_available",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-15]: Buen lugar para repostar, vaciado y llenado de aguas. El precio de vaciado y llenado es de 5€ pero si haces una compra en el supermercado igual o superior a 20€, este servicio es gratuito. Gasolina a buen precio. Dispone también de zona de lavandería y cafetería con terraza.",
+        "pros": [
+            "supplies_nearby_shops_fuel",
+            "waste_disposal_functional",
+            "value_affordable_fair",
+            "laundry_effective_available",
+            "catering_bar_restaurant_onsite"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-02-02]: Nächtliche Ruhe war top - Versorgung im Aldi toll-",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "supplies_nearby_shops_fuel"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-15]: Parquing de pago ( 2€ tarifa diaria) a 10 minutos andando del centro. No hay señal de prohibición. Pasamos una noche muy tranquila. Justo al lado hay un parque con un pequeño bar. El bus 4474 te lleva a la bonita Playa de la Figuerinha.",
+        "pros": [
+            "value_affordable_fair",
+            "location_town_center_proximity",
+            "atmosphere_quiet_peaceful",
+            "catering_bar_restaurant_onsite",
+            "tips_local_knowledge"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-22]: Recién llegados y no admiten perros.",
+        "pros": [],
+        "cons": [
+            "misc_other_cons"
+        ]
+    },
+    {
+        "review": "[2024-08-20]: As casas de banho são poucas para a quantidade de pessoas. Condições antigas e falta de indicações.",
+        "pros": [],
+        "cons": [
+            "service_lack_of_amenities",
+            "facilities_broken_outdated",
+            "signage_unclear_directions"
+        ]
+    },
+    {
+        "review": "[2024-11-29]: une nuit hors saison dans ce camping nous a permis de vraiment bien nous reposer. pas un bruit. les installations sont certe anciennes mais tout fonctionne et c'est très propre. nous sommes entrés à midi et nous nous sommes installés où nous voulions. pour 19 euros à deux avec électricité.\nMerci de garder ouverts les camping hors saison !",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "facilities_clean_modern",
+            "utilities_reliable_electricity",
+            "value_affordable_fair",
+            "checkin_automated_flexible_process",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-09-30]: camping municipal avec des installations qui datent un peu mais honnêtement c'était très cool.\nles services comme l'eau, les vidanges de touts types sont gratuits.\nnous y étions en fin septembre et honnêtement c'était très cool.",
+        "pros": [
+            "municipal_support_pro",
+            "water_potable_easy_refill",
+            "waste_disposal_functional",
+            "value_affordable_fair",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-06]: sitio perfecto para pasar día y noche , tal y como explican. se pagamos 2 euros el día a partir de las 9 de la mañana, en el centro de setubal , ideal para visitarlo a pie.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "value_affordable_fair",
+            "location_town_center_proximity"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2026-01-08]: Arrivé aujourd'hui. Grand camping ⛺️ très calme. Certes pas de première jeunesse. Une belle vue. 14 euros pour 1 personne ,1 chien et mon campingcar.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "views_sunset_aesthetic",
+            "value_affordable_fair",
+            "pet_friendly_amenities"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-08-22]: El lugar está muy bien y cerca del centro. Para autocaravanas de 7,40 m, como la mía, la aparqué con la parte trasera sobre un espacio de césped. El inconveniente es que si planean pernoctar, los aspersores se encienden de noche y parece que está cayendo una tormenta. Por lo demás, todo bien.",
+        "pros": [
+            "location_town_center_proximity",
+            "access_easy_large_vehicles",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "misc_other_cons"
+        ]
+    },
+    {
+        "review": "[2025-11-03]: Schöne Aussicht Tag+Nacht. Keine anderen Camper. Ich würde empfehlen nicht direkt neben der Straße sondern bei den Bäumen parken. Ein wenig dreckig aber nicht tragisch. Die Nacht ruhig verbracht ohne besondere Ereignisse. Nicht beleuchtet.",
+        "pros": [
+            "views_sunset_aesthetic",
+            "atmosphere_quiet_peaceful",
+            "environment_low_light_pollution"
+        ],
+        "cons": [
+            "cleanliness_dirty_unkept"
+        ]
+    },
+    {
+        "review": "[2024-05-12]: Grundsätzlich ein sehr schöner Platz. Es stört nur etwas die Kategorisierung als Landwirtschaft, wo doch bei mehr als 20 WoMo Plätzen eindeutig diese Haupteinnahmequelle darstellen - die Bewertung müsste sich also eigentl. an einem Campingplatz orientieren (ohne Services dann wohl eher nur 2 Sterne…) Die Autobahn ist wirklich sehr laut, die Bahngleise von Zeit zu Zeit auch. Müll muss mitnehmen.",
+        "pros": [
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "noise_traffic_airplane_loud",
+            "service_lack_of_amenities"
+        ]
+    },
+    {
+        "review": "[2024-07-27]: Ficamos 1 noite. Bom spot, conseguimos passar com a nossa capucino sem qualquer problema. Pessoal simpático, é ideal para quem gosta de estar conectado com a natureza. Só sentimos falta de mais árvores para criar o local mais fresco e mais sombras.",
+        "pros": [
+            "access_easy_large_vehicles",
+            "staff_friendly_helpful",
+            "scenery_natural_beauty"
+        ],
+        "cons": [
+            "shade_lack_of_exposed"
+        ]
+    },
+    {
+        "review": "[2025-04-20]: This place is so magical. \nWe had two nights there and we felt home immediately. \n\ngreat people\nawesome vibe\nincredible pizza\nbeautiful farm and landscape\n\nIt was the best way to end our roadtrip in the country. \n\nwe definitely will come back on our next trip.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "unique_vibe_creative_eco",
+            "catering_bar_restaurant_onsite",
+            "scenery_natural_beauty",
+            "staff_friendly_helpful"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-07-26]: Très chouette endroit, une communauté accueillante. Beaucoup de moustiques.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "safety_feeling_safe_community"
+        ],
+        "cons": [
+            "environment_pests_insects_smells"
+        ]
+    },
+    {
+        "review": "[2025-11-23]: Nice welcome and tour of this calm and colorful community that allows guests into their home. Best shower I’ve had in a long time on the road. No pizza on Saturdays this time of year and I forgot to ask about breakfast. No mosquitos now. There is noise from the motorway during the day, quiet at night. Nice walks with the dog. Looking forward to coming back and exploring more another time.",
+        "pros": [
+            "staff_friendly_helpful",
+            "atmosphere_quiet_peaceful",
+            "unique_vibe_creative_eco",
+            "showers_hot_high_pressure",
+            "pet_friendly_amenities",
+            "location_nature_trails_access",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "noise_traffic_airplane_loud"
+        ]
+    },
+    {
+        "review": "[2024-07-08]: Merci à la commune pour ces services ! je recommande",
+        "pros": [
+            "municipal_support_pro",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-08-11]: Kleiner Stellplatz 10-15 min. vom Strand entfernt.\nWasservers. Toilettenents. und Frischwasser. kostenlos vor Ort.\nDie Nacht war leider um 6Uhr vorbei, da sich Jugendliche dachten(kamen mit PKW) sich auf der Grauwasserstation auszubrechen...und lautstark sich zu unterhalten.\nHabe deren Hinterlassenschaften weggeräumt/ sauber gemacht... um diesen an sich tollen Platz sicher zu bewahren.",
+        "pros": [
+            "location_beach_water_access",
+            "waste_disposal_functional",
+            "water_potable_easy_refill",
+            "value_affordable_fair",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": [
+            "noise_events_music_parties",
+            "cleanliness_dirty_unkept"
+        ]
+    },
+    {
+        "review": "[2025-05-07]: Space for 5/6 vans but with a parking lot next to it! Water available! Amazing place - you can walk or bike to amazing beaches",
+        "pros": [
+            "water_potable_easy_refill",
+            "misc_general_positive_sentiment",
+            "location_beach_water_access"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-07-27]: Le pongo tres estrellas porque no funciona el sumidero de las aguas grises está atascado y hay muchos mosquitos por culpa de los arrozales cercanos",
+        "pros": [],
+        "cons": [
+            "facilities_broken_outdated",
+            "environment_pests_insects_smells"
+        ]
+    },
+    {
+        "review": "[2025-10-29]: Très bien. Bon espace. Service gratuit.\nProche de la plage. \nLe seul bémol c'est le robinet d'eau  potable pas pratique pour le remplissage. Une place toujours occupée en permanence par quelqu'un qui habite là.",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "pitches_spacious_private",
+            "value_affordable_fair",
+            "location_beach_water_access"
+        ],
+        "cons": [
+            "misc_other_cons",
+            "social_exclusionary_cliquey"
+        ]
+    },
+    {
+        "review": "[2025-12-30]: Perfect little spot, arrived 30/12 , 15 min walk to the beach beautiful surroundings. It was pretty full here when we arrived 2 spots left",
+        "pros": [
+            "misc_general_positive_sentiment",
+            "location_beach_water_access",
+            "scenery_natural_beauty"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-04-18]: Wij hebben hier overnacht doordat er in het natuurpark en directe omgeving geen overnachtingsplekken zijn voor campers. Het was een prima camping voor de prijs die je betaalt, de drie sterren komen waarschijnlijk door het feit dat wij enkel hebben overnacht en geen gebruik hebben gemaakt van de voorzieningen. Ligging ten opzichte van het park is ideaal!",
+        "pros": [
+            "value_affordable_fair",
+            "location_nature_trails_access"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2024-06-03]: Relax frente a la bahía. Duchas agua caliente y Duchas exteriores agua fría,fregaderos,  lavaderos ropa, grifos para lavar los pies. parcelas con sombra. No he sentido ruido de carretera ni de música. parada autobús en la puerta. dos adultos camper(<6m) sin electricidad 14€. Check out a las 14h. Perfecto para descansar y visitar la zona.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "location_beach_water_access",
+            "showers_hot_high_pressure",
+            "laundry_effective_available",
+            "shade_natural_provided",
+            "value_affordable_fair",
+            "misc_general_positive_sentiment"
+        ],
+        "cons": []
+    },
+    {
+        "review": "[2025-11-22]: viajamos em Caravana (reboque) estivemos esta noite (21/22 de Nov) aqui. a ASA estava completa mas o parque em frente estava vazio e foi onde pernoitamos. zona sossegada vila agradável.",
+        "pros": [
+            "atmosphere_quiet_peaceful",
+            "location_town_center_proximity"
+        ],
+        "cons": [
+            "overcrowding_situational_busy"
+        ]
+    }
+]
