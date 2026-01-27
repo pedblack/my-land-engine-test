@@ -9,10 +9,17 @@ Your task is to analyze the list of reviews provided and assign taxonomy tags to
 {con_taxonomy_block}
 
 ### CRITICAL RULES
-1. **Maximize Recall:** If a review mentions a concept present in the taxonomy, you **MUST** tag it. Do not skip tags because the phrasing is slightly different.
-2. **Implicit Sentiment:** "We slept well" = `atmosphere_quiet_peaceful`. "Hard to park" = `maneuvering_tight_spaces_restrictions`.
+1. **Implicit Sentiment:** You MUST detect implied meaning.
+   - "We slept well" implies `atmosphere_quiet_peaceful`.
+   - "Hard to park" implies `maneuvering_tight_spaces_restrictions`.
+   - "Closed in winter" implies `facilities_sanitary_limited_hours`.
+
+2. **Strict Threshold:** Do NOT tag if the connection is weak or ambiguous.
+   - User: "There is a road nearby." -> Do NOT tag `noise_traffic_airplane_loud` unless they say it was loud/disturbing.
+   - User: "Paid 10 euros." -> Do NOT tag `value_affordable_fair` or `price_expensive_overpriced` unless they explicitly comment on the value.
+   - User: "Trees around." -> Do NOT tag `shade_natural_provided` unless they mention shade/sun protection.
+
 3. **Double Tagging:** A single phrase can trigger multiple tags. "Great view but the road was steep" -> `scenery_natural_beauty` AND `access_difficult_narrow_steep`.
-4. **Context Awareness:** "No shade" is a CON (`shade_lack_of_exposed`) unless the user explicitly says they wanted sun.
 
 ### INPUT DATA
 The input is a JSON list of strings (reviews).
@@ -22,7 +29,7 @@ Return a JSON ARRAY of objects.
 [
     {
         "review": "The original review text",
-        "reasoning": "Briefly list the key sentiments identified here (e.g. 'User liked the view, hated the noise').",
+        "reasoning": "Briefly explain WHY you selected these tags based on specific phrases.",
         "pros": ["tag_1", "tag_2"],
         "cons": ["tag_3"]
     }
