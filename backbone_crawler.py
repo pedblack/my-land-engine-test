@@ -213,9 +213,10 @@ class P4NScraper:
             with open(LLM_PROMPT_FILE, "r", encoding="utf-8") as f:
                 system_instruction_template = f.read()
 
-            system_instruction = system_instruction_template.format(
-                pro_taxonomy_block=pro_taxonomy_block,
-                con_taxonomy_block=con_taxonomy_block,
+            system_instruction = system_instruction_template.replace(
+                "{pro_taxonomy_block}", pro_taxonomy_block
+            ).replace(
+                "{con_taxonomy_block}", con_taxonomy_block
             )
         except Exception as e:
             ts_print(f"❌ FAILED TO LOAD TAXONOMY OR PROMPT: {e}")
