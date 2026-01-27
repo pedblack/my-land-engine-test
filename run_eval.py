@@ -11,21 +11,18 @@ from google.genai import types
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 EVAL_SET_FILE = "eval_set.json"
 PROMPT_FILE = "llm_prompt.txt"
-BATCH_SIZE = 10  # Process 10 reviews per call to avoid token limits
 
 # Model Options
 MODELS = {
-    "flash": "gemini-2.5-flash",
-    "lite": "gemini-2.5-flash-lite"
+    "flash": "gemini-2.0-flash-001",
+    "lite": "gemini-2.0-flash-lite-preview-02-05"
 }
 
 def load_data(limit: int = 0):
     if not os.path.exists(EVAL_SET_FILE):
         raise FileNotFoundError(f"❌ Could not find {EVAL_SET_FILE}")
-    
     with open(EVAL_SET_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-    
     if limit > 0:
         return data[:limit]
     return data
@@ -42,17 +39,14 @@ def calculate_metrics(gold_set: Set[str], pred_set: Set[str]):
     fn = len(gold_set - pred_set)
     return tp, fp, fn
 
-def clean_json_text(text):
-    """Removes markdown backticks if present."""
-    # Remove ```json and ``` or just ```
-    if text.startswith("```"):
-        text = re.sub(r"^```json\s*", "", text)
-        text = re.sub(r"^```\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
+def extract_json_content(text):
+    """Robust extraction removing markdown code blocks."""
+    text = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"```\s*", "", text)
     return text.strip()
 
 async def process_batch(client, model_name, system_instruction, batch_reviews, start_index):
-    """Sends a single batch to the LLM."""
+    """Sends a single batch to the LLM and handles wrapped responses."""
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
         temperature=0.0,
@@ -66,54 +60,83 @@ async def process_batch(client, model_name, system_instruction, batch_reviews, s
             config=config,
         )
         
-        clean_text = clean_json_text(response.text)
-        return json.loads(clean_text)
-    except Exception as e:
-        print(f"⚠️ Error in batch starting at {start_index}: {str(e)[:100]}...")
+        raw_text = extract_json_content(response.text)
+        
+        try:
+            parsed = json.loads(raw_text)
+        except json.JSONDecodeError:
+            print(f"   ⚠️ JSON Decode Error in batch {start_index}. Response preview: {raw_text[:100]}...")
+            return []
+
+        # --- SMART UNWRAPPER ---
+        if isinstance(parsed, list):
+            return parsed
+        
+        if isinstance(parsed, dict):
+            # Check common keys
+            for key in ["reviews", "data", "results", "output", "items", "analysis"]:
+                if key in parsed and isinstance(parsed[key], list):
+                    return parsed[key]
+            # If strictly one key exists and it's a list
+            if len(parsed) == 1:
+                key = list(parsed.keys())[0]
+                if isinstance(parsed[key], list):
+                    return parsed[key]
+
+            print(f"   ⚠️ Parsed JSON is a dict but couldn't find the list. Keys: {list(parsed.keys())}")
+            return []
+
         return []
 
-async def run_evaluation(model_key: str, limit: int):
+    except Exception as e:
+        print(f"   ⚠️ API/Network Error in batch {start_index}: {str(e)}")
+        return []
+
+async def run_evaluation(model_key: str, limit: int, batch_size: int):
     client = genai.Client(api_key=API_KEY)
     model_name = MODELS.get(model_key)
-    
     if not model_name:
         raise ValueError(f"Unknown model key: {model_key}")
 
     print(f"🚀 Loading Data...")
     gold_data = load_data(limit)
-    print(f"   Loaded {len(gold_data)} items to evaluate.")
+    total_items = len(gold_data)
+    print(f"   Loaded {total_items} items to evaluate.")
 
     print(f"📜 Loading Prompt...")
     system_instruction = load_prompt()
 
     predictions = []
     
-    # --- BATCH PROCESSING LOOP ---
-    total_items = len(gold_data)
-    print(f"🤖 Sending requests to {model_name} in batches of {BATCH_SIZE}...")
+    # Determine effective batch size
+    # If batch_size is 0, we process all items in one go.
+    effective_batch_size = total_items if batch_size <= 0 else batch_size
     
-    for i in range(0, total_items, BATCH_SIZE):
-        batch_gold = gold_data[i : i + BATCH_SIZE]
+    print(f"🤖 Sending requests to {model_name}...")
+    if batch_size <= 0:
+        print(f"   Mode: SINGLE CALL (Batch size: {total_items})")
+    else:
+        print(f"   Mode: BATCHED (Batch size: {effective_batch_size})")
+
+    # --- PROCESSING LOOP ---
+    for i in range(0, total_items, effective_batch_size):
+        batch_gold = gold_data[i : i + effective_batch_size]
         batch_reviews = [item["review"] for item in batch_gold]
         
-        print(f"   Processing batch {i//BATCH_SIZE + 1} ({len(batch_reviews)} items)...")
+        current_batch_num = (i // effective_batch_size) + 1
+        print(f"   Processing batch {current_batch_num} (Items {i} to {i+len(batch_reviews)})...")
         
         batch_preds = await process_batch(client, model_name, system_instruction, batch_reviews, i)
         
-        # Validation: Ensure we got a list back
-        if isinstance(batch_preds, list):
+        if batch_preds:
             predictions.extend(batch_preds)
         else:
-            print(f"   ❌ Batch {i//BATCH_SIZE + 1} returned invalid format (not a list).")
+            print(f"   ❌ Batch {current_batch_num} failed or returned empty.")
 
     # --- SCORING ---
     print("\n📊 Calculating Metrics...")
     
     total_tp, total_fp, total_fn = 0, 0, 0
-    
-    # Map predictions by index to handle potential mismatches safely
-    # We assume sequential processing, but safety first.
-    # Since we extended `predictions` in order, index j in predictions maps to index j in gold_data
     
     for i, gold_item in enumerate(gold_data):
         gold_pros = set(gold_item.get("pros", []))
@@ -121,15 +144,11 @@ async def run_evaluation(model_key: str, limit: int):
         
         if i < len(predictions):
             pred_item = predictions[i]
-            # Handle case where LLM returns object with 'pros'/'cons' keys
             pred_pros = set(pred_item.get("pros", []))
             pred_cons = set(pred_item.get("cons", []))
         else:
-            # If the LLM crashed or returned fewer items, count as misses (FN)
             pred_pros, pred_cons = set(), set()
 
-        # Combine Pros & Cons for a single F1 score
-        # (You can split this if you want separate metrics)
         gold_all = gold_pros.union(gold_cons)
         pred_all = pred_pros.union(pred_cons)
 
@@ -145,7 +164,9 @@ async def run_evaluation(model_key: str, limit: int):
     print("\n" + "="*40)
     print(f"EVAL REPORT: {model_name}")
     print("="*40)
-    print(f"Samples Evaluated: {len(gold_data)}")
+    print(f"Samples Evaluated: {total_items}")
+    print(f"Batch Size Used:   {effective_batch_size}")
+    print("-" * 40)
     print(f"Precision: {precision:.2%}")
     print(f"Recall:    {recall:.2%}")
     print(f"F1 Score:  {f1:.2%}")
@@ -155,8 +176,9 @@ async def run_evaluation(model_key: str, limit: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=10, help="Number of reviews (0 for all)")
+    parser.add_argument("--limit", type=int, default=10, help="Number of reviews to evaluate (0 for all)")
+    parser.add_argument("--batch_size", type=int, default=10, help="Items per API call (0 for single call)")
     parser.add_argument("--model", type=str, choices=["flash", "lite"], default="lite")
     args = parser.parse_args()
     
-    asyncio.run(run_evaluation(args.model, args.limit))
+    asyncio.run(run_evaluation(args.model, args.limit, args.batch_size))
