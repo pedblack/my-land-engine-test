@@ -16,7 +16,7 @@ from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
 FLASH_MODEL = "gemini-2.5-flash"
-LITE_MODEL = "gemini-2.5-flash-lite"
+LITE_MODEL = "gemini-2.5-flash"  # remove this.
 REVIEW_COUNT_THRESHOLD = 100  # Threshold to switch between Lite and Flash models
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
