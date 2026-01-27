@@ -14,8 +14,8 @@ PROMPT_FILE = "llm_prompt.txt"
 
 # Model Options
 MODELS = {
-    "flash": "gemini-2.0-flash-001",
-    "lite": "gemini-2.0-flash-lite-preview-02-05"
+    "flash": "gemini-2.5-flash",
+    "lite": "gemini-2.5-flash-lite"
 }
 
 def load_data(limit: int = 0):
@@ -31,7 +31,23 @@ def load_prompt():
     if not os.path.exists(PROMPT_FILE):
         raise FileNotFoundError(f"❌ Could not find {PROMPT_FILE}")
     with open(PROMPT_FILE, "r", encoding="utf-8") as f:
-        return f.read()
+        # We assume the prompt file is already formatted or handles placeholders dynamically
+        # If your prompt has python format placeholders like {pro_taxonomy_block}, 
+        # you might need to fill them here using taxonomy.json, similar to the scraper.
+        # For simplicity, assuming prompt file is ready or we load taxonomy here.
+        content = f.read()
+        
+        # Check if we need to inject taxonomy (Crucial step if using placeholders)
+        if "{pro_taxonomy_block}" in content:
+            with open("taxonomy.json", "r") as tf:
+                tax = json.load(tf)
+                pro_list = [f"- {item['topic']}: {item['description']}" for item in tax.get("pros", [])]
+                con_list = [f"- {item['topic']}: {item['description']}" for item in tax.get("cons", [])]
+                content = content.format(
+                    pro_taxonomy_block="\n".join(pro_list),
+                    con_taxonomy_block="\n".join(con_list)
+                )
+        return content
 
 def calculate_metrics(gold_set: Set[str], pred_set: Set[str]):
     tp = len(gold_set.intersection(pred_set))
@@ -54,9 +70,10 @@ async def process_batch(client, model_name, system_instruction, batch_reviews, s
     )
 
     try:
+        # Send ONLY the list of strings, matching the prompt expectation
         response = await client.aio.models.generate_content(
             model=model_name,
-            contents=json.dumps(batch_reviews),
+            contents=f"ANALYZE REVIEWS:\n{json.dumps(batch_reviews)}",
             config=config,
         )
         
@@ -73,10 +90,11 @@ async def process_batch(client, model_name, system_instruction, batch_reviews, s
             return parsed
         
         if isinstance(parsed, dict):
-            # Check common keys
+            # Check common keys if LLM wrapped the list
             for key in ["reviews", "data", "results", "output", "items", "analysis"]:
                 if key in parsed and isinstance(parsed[key], list):
                     return parsed[key]
+            
             # If strictly one key exists and it's a list
             if len(parsed) == 1:
                 key = list(parsed.keys())[0]
@@ -94,22 +112,23 @@ async def process_batch(client, model_name, system_instruction, batch_reviews, s
 
 async def run_evaluation(model_key: str, limit: int, batch_size: int):
     client = genai.Client(api_key=API_KEY)
-    model_name = MODELS.get(model_key)
-    if not model_name:
-        raise ValueError(f"Unknown model key: {model_key}")
-
+    model_name = MODELS.get(model_key, model_key) # Fallback to key if not found
+    
     print(f"🚀 Loading Data...")
     gold_data = load_data(limit)
     total_items = len(gold_data)
     print(f"   Loaded {total_items} items to evaluate.")
 
     print(f"📜 Loading Prompt...")
-    system_instruction = load_prompt()
+    try:
+        system_instruction = load_prompt()
+    except Exception as e:
+        print(f"❌ Error loading prompt/taxonomy: {e}")
+        return
 
     predictions = []
     
     # Determine effective batch size
-    # If batch_size is 0, we process all items in one go.
     effective_batch_size = total_items if batch_size <= 0 else batch_size
     
     print(f"🤖 Sending requests to {model_name}...")
@@ -129,9 +148,14 @@ async def run_evaluation(model_key: str, limit: int, batch_size: int):
         batch_preds = await process_batch(client, model_name, system_instruction, batch_reviews, i)
         
         if batch_preds:
+            # Append predictions. We assume strict ordering.
+            # If the batch size matches, great. If not, we might have misalignment.
+            # (Advanced implementations map by review text, but simple sequential is usually fine for batch=10)
             predictions.extend(batch_preds)
         else:
             print(f"   ❌ Batch {current_batch_num} failed or returned empty.")
+            # Pad with empty dicts to maintain index alignment for subsequent batches
+            predictions.extend([{} for _ in batch_reviews])
 
     # --- SCORING ---
     print("\n📊 Calculating Metrics...")
@@ -144,8 +168,12 @@ async def run_evaluation(model_key: str, limit: int, batch_size: int):
         
         if i < len(predictions):
             pred_item = predictions[i]
-            pred_pros = set(pred_item.get("pros", []))
-            pred_cons = set(pred_item.get("cons", []))
+            # Handle potential mismatched structure
+            if isinstance(pred_item, dict):
+                pred_pros = set(pred_item.get("pros", []))
+                pred_cons = set(pred_item.get("cons", []))
+            else:
+                pred_pros, pred_cons = set(), set()
         else:
             pred_pros, pred_cons = set(), set()
 
