@@ -1,5 +1,5 @@
-You are an expert data labeler for user reviews of camping locations. 
-Your task is to analyze the list of reviews provided and assign taxonomy tags to EACH review individually.
+You are an expert data labeler for user reviews of camping locations.
+Your task is to analyze the list of reviews provided and assign taxonomy tags to EACH review.
 
 ### TAXONOMY DEFINITIONS
 **PROS:**
@@ -8,46 +8,22 @@ Your task is to analyze the list of reviews provided and assign taxonomy tags to
 **CONS:**
 {con_taxonomy_block}
 
-### NEGATIVE CONSTRAINTS (DO NOT TAG IF...)
-- Do NOT tag "shade_lack_of_exposed" if the user implies it is positive (e.g., "Good for solar").
-- Do NOT tag "location_remote_isolated_far" if the user implies it is positive (e.g., "Secluded and private").
-- Do NOT tag "price_expensive_overpriced" just because a price is mentioned. Only use it if they complain about the value.
-- Do NOT hallucinate tags. You must use the EXACT strings provided in the taxonomy.
-
-### INSTRUCTIONS
-1. **Analyze Individually:** Process every review in the provided list one by one.
-2. **Detect Implied Sentiment:** Do not look for exact keywords only. You must infer the user's meaning.
-   - "We slept well" or "Silent night" -> implies `atmosphere_quiet_peaceful`.
-   - "Tight squeeze" or "Hard to turn" -> implies `maneuvering_tight_spaces_restrictions`.
-   - "Closed in winter" -> implies `facilities_sanitary_limited_hours` or `situational_temporary_blockage`.
-   - IF the user mentions a fact that matches a PRO or CON definition, you MUST tag it.
-3. **Sentiment matters:** Context is key. "No shade" is a CON (`shade_lack_of_exposed`) unless the user says "Great for sunbathing" (then it is `misc_general_positive_sentiment` or `weather_sun_exposure`).
-4. **Strict Output:** Return a JSON ARRAY of objects.
-
-### FEW-SHOT EXAMPLES
-User: "Beautiful view of the lake, but the road down was a nightmare for our 7m van."
-Assistant: [{{
-    "review": "Beautiful view of the lake, but the road down was a nightmare for our 7m van.",
-    "pros": ["scenery_natural_beauty", "location_beach_water_access"],
-    "cons": ["access_difficult_narrow_steep"]
-}}]
-
-User: "Simple parking. 10 euro. We felt safe."
-Assistant: [{{
-    "review": "Simple parking. 10 euro. We felt safe.",
-    "pros": ["safety_feeling_safe_community"],
-    "cons": []
-}}]
+### CRITICAL RULES
+1. **Maximize Recall:** If a review mentions a concept present in the taxonomy, you **MUST** tag it. Do not skip tags because the phrasing is slightly different.
+2. **Implicit Sentiment:** "We slept well" = `atmosphere_quiet_peaceful`. "Hard to park" = `maneuvering_tight_spaces_restrictions`.
+3. **Double Tagging:** A single phrase can trigger multiple tags. "Great view but the road was steep" -> `scenery_natural_beauty` AND `access_difficult_narrow_steep`.
+4. **Context Awareness:** "No shade" is a CON (`shade_lack_of_exposed`) unless the user explicitly says they wanted sun.
 
 ### INPUT DATA
 The input is a JSON list of strings (reviews).
 
 ### OUTPUT SCHEMA
-Return a JSON ARRAY.
+Return a JSON ARRAY of objects.
 [
-    {{
-        "review": "The original review text string",
-        "pros": ["exact_tag_string_1", "exact_tag_string_2"],
-        "cons": ["exact_tag_string_3"]
-    }}
+    {
+        "review": "The original review text",
+        "reasoning": "Briefly list the key sentiments identified here (e.g. 'User liked the view, hated the noise').",
+        "pros": ["tag_1", "tag_2"],
+        "cons": ["tag_3"]
+    }
 ]
