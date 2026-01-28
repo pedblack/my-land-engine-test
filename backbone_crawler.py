@@ -247,11 +247,18 @@ class P4NScraper:
                                 break
 
                     if isinstance(ai_response_list, list):
+                        # ADD THIS LOG ENTRY TO SEE INDIVIDUAL CHUNK ANSWERS
+                        PipelineLogger.log_event("GEMINI_CHUNK_ANSWER", {
+                            "chunk": f"{chunk_idx + 1}/{len(chunks)}",
+                            "response_count": len(ai_response_list)
+                        })
+
                         for item in ai_response_list:
                             if isinstance(item, dict):
                                 for p in item.get("pros", []): aggregated_pros[p] += 1
                                 for c in item.get("cons", []): aggregated_cons[c] += 1
-                        break 
+                        break
+
                 except (json.JSONDecodeError, Exception) as e:
                     err_msg = str(e).lower()
                     is_transient = any(x in err_msg for x in ["503", "overloaded", "deadline"])
