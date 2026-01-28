@@ -186,7 +186,7 @@ class P4NScraper:
         return pd.DataFrame()
 
     async def analyze_with_ai(self, raw_data, model_name, url):
-        # 1. Load dynamic taxonomy and system instructions (Original Logic)
+        # 1. Setup call stats and Load Taxonomy (Original Logic)
         try:
             with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
                 tax_data = json.load(f)
@@ -204,26 +204,26 @@ class P4NScraper:
         if not reviews_list:
             return {}
 
-        # --- CHUNKING LOGIC ---
+        # --- CHUNKING & AGGREGATION SETUP ---
         chunks = [reviews_list[i : i + MAX_REVIEWS_PER_CALL] for i in range(0, len(reviews_list), MAX_REVIEWS_PER_CALL)]
         aggregated_pros = Counter()
         aggregated_cons = Counter()
-
+        
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.0,
             system_instruction=system_instruction,
         )
 
-        for chunk in chunks:
+        # Use enumerate to fix the 'chunk_idx' error
+        for chunk_idx, chunk in enumerate(chunks):
             json_payload = json.dumps(chunk, default=str, ensure_ascii=False)
             
-            # Update call stats
             if model_name == FLASH_MODEL: self.stats["gemini_flash_calls"] += 1
             else: self.stats["gemini_lite_calls"] += 1
 
             PipelineLogger.log_event("SENT_TO_GEMINI", {
-                "chunk": f"{chunk_idx + 1}/{len(chunks)}", # Shows "1/2", "2/2", etc.
+                "chunk": f"{chunk_idx + 1}/{len(chunks)}", 
                 "payload_size": len(chunk), 
                 "model": model_name
             })
@@ -240,35 +240,27 @@ class P4NScraper:
                     clean_text = re.sub(r"```json\s*|\s*```", "", response.text).strip()
                     ai_response_list = json.loads(clean_text)
 
-                    # Unwrap if wrapped in a dict key (Defensive Original Logic)
                     if isinstance(ai_response_list, dict):
                         for k in ["reviews", "data", "results", "output"]:
                             if k in ai_response_list and isinstance(ai_response_list[k], list):
                                 ai_response_list = ai_response_list[k]
                                 break
 
-                    # Map-Reduce Aggregation (Aggregate current chunk into global counters)
                     if isinstance(ai_response_list, list):
                         for item in ai_response_list:
                             if isinstance(item, dict):
                                 for p in item.get("pros", []): aggregated_pros[p] += 1
                                 for c in item.get("cons", []): aggregated_cons[c] += 1
-                        break # Success for this chunk, move to next
-                    else:
-                        ts_print(f"⚠️ Unexpected JSON structure from AI for {url}")
-
+                        break 
                 except (json.JSONDecodeError, Exception) as e:
                     err_msg = str(e).lower()
                     is_transient = any(x in err_msg for x in ["503", "overloaded", "deadline"])
                     if (isinstance(e, json.JSONDecodeError) or is_transient) and attempt < MAX_GEMINI_RETRIES - 1:
-                        ts_print(f"🔄 [RETRY {attempt+1}/{MAX_GEMINI_RETRIES}] {type(e).__name__} for {url}")
                         continue
-                    
-                    ts_print(f"❌ [GEMINI ERROR] URL: {url} | Error: {e}")
+                    ts_print(f"❌ [GEMINI ERROR] Chunk {chunk_idx+1} URL: {url} | Error: {e}")
                     self.stats["gemini_errors"] += 1
-                    # If a chunk completely fails, we still continue to the next chunk to salvage what we can
 
-        # 3. Construct final result matching original schema
+        # 3. Construct result matching old schema for compatibility
         aggregated_json = {
             "num_places": raw_data.get("places_count"),
             "parking_min": None, "parking_max": None, "electricity_eur": None, "top_languages": [],
