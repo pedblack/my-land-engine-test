@@ -222,7 +222,11 @@ class P4NScraper:
             if model_name == FLASH_MODEL: self.stats["gemini_flash_calls"] += 1
             else: self.stats["gemini_lite_calls"] += 1
 
-            PipelineLogger.log_event("SENT_TO_GEMINI", {"payload_size": len(chunk), "model": model_name})
+            PipelineLogger.log_event("SENT_TO_GEMINI", {
+                "chunk": f"{chunk_idx + 1}/{len(chunks)}", # Shows "1/2", "2/2", etc.
+                "payload_size": len(chunk), 
+                "model": model_name
+            })
 
             for attempt in range(MAX_GEMINI_RETRIES):
                 try:
