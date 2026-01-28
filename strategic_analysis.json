@@ -5,7 +5,7 @@
         "market_gap": "High frustration index identified in cluster."
     },
     "full_score_map": {
-        "50070": 58.62,
+        "8637": 58.62,
         "306843": 58.62,
         "550336": 58.62,
         "548832": 58.62,
@@ -495,7 +495,6 @@
         "108239": 58.62,
         "303940": 58.62,
         "20931": 58.62,
-        "8637": 58.62,
         "398761": 58.62,
         "96477": 58.62,
         "311902": 58.62,
@@ -530,7 +529,7 @@
             ]
         },
         {
-            "cluster_name": "Region 0 ((7570) Minas do)",
+            "cluster_name": "Region 0 ((7630-740) Camp)",
             "opportunity_score": 58.62,
             "top_performing_p4n_ids": [
                 166229,
