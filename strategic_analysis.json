@@ -5,6 +5,7 @@
         "market_gap": "High frustration index identified in cluster."
     },
     "full_score_map": {
+        "50070": 58.62,
         "306843": 58.62,
         "550336": 58.62,
         "548832": 58.62,
@@ -488,7 +489,6 @@
         "260875": 58.62,
         "35314": 58.62,
         "23784": 58.62,
-        "50070": 58.62,
         "167507": 58.62,
         "310872": 58.62,
         "442109": 58.62,
@@ -530,7 +530,7 @@
             ]
         },
         {
-            "cluster_name": "Region 0 ((8100-724) Loul)",
+            "cluster_name": "Region 0 ((7570) Minas do)",
             "opportunity_score": 58.62,
             "top_performing_p4n_ids": [
                 166229,
