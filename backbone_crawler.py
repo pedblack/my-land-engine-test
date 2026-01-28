@@ -15,7 +15,7 @@ from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
-MAX_REVIEWS_PER_CALL = 200  # Beyond this limit we make more than one call.
+MAX_REVIEWS_PER_CALL = 100  # Beyond this limit we make more than one call.
 REVIEW_COUNT_THRESHOLD = 100  # Threshold to switch between Lite and Flash models.
 CONCURRENCY_LIMIT = 3
 MAX_GEMINI_RETRIES = 3
