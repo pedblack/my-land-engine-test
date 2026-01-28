@@ -15,14 +15,15 @@ from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # --- CONFIGURABLE CONSTANTS ---
+MAX_REVIEWS_PER_CALL = 200  # Beyond this limit we make more than one call.
+REVIEW_COUNT_THRESHOLD = 100  # Threshold to switch between Lite and Flash models.
+CONCURRENCY_LIMIT = 3
+MAX_GEMINI_RETRIES = 3
 FLASH_MODEL = "gemini-2.5-flash"
 LITE_MODEL = "gemini-2.5-flash"  # remove this.
-REVIEW_COUNT_THRESHOLD = 100  # Threshold to switch between Lite and Flash models
 PROD_CSV = "backbone_locations.csv"
 DEV_CSV = "backbone_locations_dev.csv"
 LOG_FILE = "pipeline_execution.log"
-CONCURRENCY_LIMIT = 3
-MAX_GEMINI_RETRIES = 3
 TAXONOMY_FILE = "taxonomy.json"  # Source of truth for tags
 LLM_PROMPT_FILE = "llm_prompt.txt"  # File containing the LLM prompt
 
@@ -185,53 +186,28 @@ class P4NScraper:
         return pd.DataFrame()
 
     async def analyze_with_ai(self, raw_data, model_name, url):
-        if model_name == FLASH_MODEL:
-            self.stats["gemini_flash_calls"] += 1
-        else:
-            self.stats["gemini_lite_calls"] += 1
-
-        # Load dynamic taxonomy from JSON file with descriptions
+        # 1. Load dynamic taxonomy and system instructions (Original Logic)
         try:
             with open(TAXONOMY_FILE, "r", encoding="utf-8") as f:
                 tax_data = json.load(f)
-
-                # Format each entry as "topic: description" for better AI context
-                pro_list = [
-                    f"- {item['topic']}: {item['description']}"
-                    for item in tax_data.get("pros", [])
-                    if isinstance(item, dict)
-                ]
-                con_list = [
-                    f"- {item['topic']}: {item['description']}"
-                    for item in tax_data.get("cons", [])
-                    if isinstance(item, dict)
-                ]
-
-                pro_taxonomy_block = "\n".join(pro_list)
-                con_taxonomy_block = "\n".join(con_list)
+                pro_list = [f"- {item['topic']}: {item['description']}" for item in tax_data.get("pros", []) if isinstance(item, dict)]
+                con_list = [f"- {item['topic']}: {item['description']}" for item in tax_data.get("cons", []) if isinstance(item, dict)]
+                pro_taxonomy_block, con_taxonomy_block = "\n".join(pro_list), "\n".join(con_list)
 
             with open(LLM_PROMPT_FILE, "r", encoding="utf-8") as f:
-                system_instruction_template = f.read()
-
-            system_instruction = system_instruction_template.replace(
-                "{pro_taxonomy_block}", pro_taxonomy_block
-            ).replace(
-                "{con_taxonomy_block}", con_taxonomy_block
-            )
+                system_instruction = f.read().replace("{pro_taxonomy_block}", pro_taxonomy_block).replace("{con_taxonomy_block}", con_taxonomy_block)
         except Exception as e:
             ts_print(f"❌ FAILED TO LOAD TAXONOMY OR PROMPT: {e}")
             return {}
 
-        # --- MODIFIED: Prepare only the reviews list for granular analysis ---
         reviews_list = raw_data.get("all_reviews", [])
         if not reviews_list:
             return {}
 
-        json_payload = json.dumps(reviews_list, default=str, ensure_ascii=False)
-
-        PipelineLogger.log_event(
-            "SENT_TO_GEMINI", {"payload_size": len(reviews_list), "model": model_name}
-        )
+        # --- CHUNKING LOGIC ---
+        chunks = [reviews_list[i : i + MAX_REVIEWS_PER_CALL] for i in range(0, len(reviews_list), MAX_REVIEWS_PER_CALL)]
+        aggregated_pros = Counter()
+        aggregated_cons = Counter()
 
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -239,91 +215,68 @@ class P4NScraper:
             system_instruction=system_instruction,
         )
 
-        for attempt in range(MAX_GEMINI_RETRIES):
-            try:
-                await asyncio.sleep(AI_DELAY * (attempt + 1))
+        for chunk in chunks:
+            json_payload = json.dumps(chunk, default=str, ensure_ascii=False)
+            
+            # Update call stats
+            if model_name == FLASH_MODEL: self.stats["gemini_flash_calls"] += 1
+            else: self.stats["gemini_lite_calls"] += 1
 
-                response = await client.aio.models.generate_content(
-                    model=model_name,
-                    contents=f"ANALYZE REVIEWS:\n{json_payload}",
-                    config=config,
-                )
+            PipelineLogger.log_event("SENT_TO_GEMINI", {"payload_size": len(chunk), "model": model_name})
 
-                # Attempt to parse JSON immediately inside the try block
-                clean_text = re.sub(r"```json\s*|\s*```", "", response.text).strip()
-                ai_response_list = json.loads(clean_text)
-
-                # --- NEW LOGIC: Map-Reduce Aggregation ---
-                # 1. Unwrap if wrapped in a dict key (defensive)
-                if isinstance(ai_response_list, dict):
-                    for k in ["reviews", "data", "results", "output"]:
-                        if k in ai_response_list and isinstance(
-                            ai_response_list[k], list
-                        ):
-                            ai_response_list = ai_response_list[k]
-                            break
-
-                # 2. Python Aggregation
-                if isinstance(ai_response_list, list):
-                    aggregated_pros = Counter()
-                    aggregated_cons = Counter()
-
-                    for item in ai_response_list:
-                        if isinstance(item, dict):
-                            for p in item.get("pros", []):
-                                aggregated_pros[p] += 1
-                            for c in item.get("cons", []):
-                                aggregated_cons[c] += 1
-
-                    # 3. Construct result matching old schema for compatibility
-                    aggregated_json = {
-                        "num_places": raw_data.get("places_count"),  # Use scraper data
-                        "parking_min": None,
-                        "parking_max": None,
-                        "electricity_eur": None,
-                        "top_languages": [],
-                        "pros_cons": {
-                            "pros": [
-                                {"topic": k, "count": v}
-                                for k, v in aggregated_pros.items()
-                            ],
-                            "cons": [
-                                {"topic": k, "count": v}
-                                for k, v in aggregated_cons.items()
-                            ],
-                        },
-                    }
-
-                    PipelineLogger.log_event(
-                        "GEMINI_ANSWER",
-                        {"model": model_name, "response": aggregated_json},
+            for attempt in range(MAX_GEMINI_RETRIES):
+                try:
+                    await asyncio.sleep(AI_DELAY * (attempt + 1))
+                    response = await client.aio.models.generate_content(
+                        model=model_name,
+                        contents=f"ANALYZE REVIEWS:\n{json_payload}",
+                        config=config,
                     )
-                    return aggregated_json
-                else:
-                    # Fallback if list not found
-                    ts_print(f"⚠️ Unexpected JSON structure from AI for {url}")
-                    return {}
 
-            except (json.JSONDecodeError, Exception) as e:
-                # Force retry for JSON errors OR transient API errors
-                is_json_error = isinstance(e, json.JSONDecodeError)
-                err_msg = str(e).lower()
-                is_transient = (
-                    "503" in err_msg or "overloaded" in err_msg or "deadline" in err_msg
-                )
+                    clean_text = re.sub(r"```json\s*|\s*```", "", response.text).strip()
+                    ai_response_list = json.loads(clean_text)
 
-                if (is_json_error or is_transient) and attempt < MAX_GEMINI_RETRIES - 1:
-                    ts_print(
-                        f"🔄 [RETRY {attempt+1}/{MAX_GEMINI_RETRIES}] {type(e).__name__} for {url}. Retrying..."
-                    )
-                    continue
+                    # Unwrap if wrapped in a dict key (Defensive Original Logic)
+                    if isinstance(ai_response_list, dict):
+                        for k in ["reviews", "data", "results", "output"]:
+                            if k in ai_response_list and isinstance(ai_response_list[k], list):
+                                ai_response_list = ai_response_list[k]
+                                break
 
-                ts_print(f"❌ [GEMINI ERROR] URL: {url} | Error: {e}")
-                PipelineLogger.log_event(
-                    "GEMINI_ERROR", {"error": str(e), "model": model_name}
-                )
-                self.stats["gemini_errors"] += 1
-                return {}
+                    # Map-Reduce Aggregation (Aggregate current chunk into global counters)
+                    if isinstance(ai_response_list, list):
+                        for item in ai_response_list:
+                            if isinstance(item, dict):
+                                for p in item.get("pros", []): aggregated_pros[p] += 1
+                                for c in item.get("cons", []): aggregated_cons[c] += 1
+                        break # Success for this chunk, move to next
+                    else:
+                        ts_print(f"⚠️ Unexpected JSON structure from AI for {url}")
+
+                except (json.JSONDecodeError, Exception) as e:
+                    err_msg = str(e).lower()
+                    is_transient = any(x in err_msg for x in ["503", "overloaded", "deadline"])
+                    if (isinstance(e, json.JSONDecodeError) or is_transient) and attempt < MAX_GEMINI_RETRIES - 1:
+                        ts_print(f"🔄 [RETRY {attempt+1}/{MAX_GEMINI_RETRIES}] {type(e).__name__} for {url}")
+                        continue
+                    
+                    ts_print(f"❌ [GEMINI ERROR] URL: {url} | Error: {e}")
+                    self.stats["gemini_errors"] += 1
+                    # If a chunk completely fails, we still continue to the next chunk to salvage what we can
+
+        # 3. Construct final result matching original schema
+        aggregated_json = {
+            "num_places": raw_data.get("places_count"),
+            "parking_min": None, "parking_max": None, "electricity_eur": None, "top_languages": [],
+            "pros_cons": {
+                "pros": [{"topic": k, "count": v} for k, v in aggregated_pros.items()],
+                "cons": [{"topic": k, "count": v} for k, v in aggregated_cons.items()],
+            },
+        }
+
+        PipelineLogger.log_event("GEMINI_ANSWER", {"model": model_name, "response": aggregated_json})
+        return aggregated_json
+
 
     async def extract_atomic(self, context, url, current_num, total_num):
         async with self.semaphore:
