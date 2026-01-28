@@ -217,6 +217,8 @@ class P4NScraper:
 
         # Use enumerate to fix the 'chunk_idx' error
         for chunk_idx, chunk in enumerate(chunks):
+            ts_print(f"🤖 [CHUNK {chunk_idx + 1}/{len(chunks)}] Analyzing {len(chunk)} reviews...")
+
             json_payload = json.dumps(chunk, default=str, ensure_ascii=False)
             
             if model_name == FLASH_MODEL: self.stats["gemini_flash_calls"] += 1
